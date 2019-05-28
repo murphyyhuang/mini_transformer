@@ -1,0 +1,34 @@
+# entry info
+data_dir:
+problem:
+# basic hyper-parameters
+norm_type: layer
+hidden_size: 512
+batch_size: 4096
+max_length: 256
+clip_grad_norm: 0.
+optimizer_adam_epsilon: 1e-9
+learning_rate_schedule: legacy
+learning_rate_decay_scheme: noam
+learning_rate: 0.1
+learning_rate_warmup_steps: 4000
+initializer_gain: 1.0
+initializer: uniform_unit_scaling
+weight_decay: 0.0
+optimizer_adam_beta1: 0.9
+optimizer_adam_beta2: 0.98
+num_sampled_classes: 0
+label_smoothing: 0.1
+layer_preprocess_sequence: n
+layer_postprocess_sequence: da
+add_position_timing_signal: True
+local_eval_frequency:
+num_threads:
+shuffle_files:
+shuffle_buffer_size:
+# universal transformer hyper-parameters
+recurrence_type: basic
+num_rec_steps: 6
+num_inrecurrence_layers: 1
+step_timing_signal_type: learned
+add_or_concat_timing_signal: add
