@@ -4,29 +4,35 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 from pct.utils import data_reader
+from pct.utils import hparam
 import tensorflow as tf
 
-
-class Hparams_data_reader():
-
-  def __init__(self):
-    self.num_threads = 4
-    self.problem = 'translate_enzh_wmt32k'
-    self.data_dir = '/home/murphyhuang/dev/mldata/en_ch_translate'
-    self.shuffle_files = True
-    self.shuffle_buffer_size = 32
+tf.enable_eager_execution()
 
 
 def create_generator_test():
-  hparams = Hparams_data_reader()
-  dataset = data_reader.create_generator(hparams, 'train')
-  iterator = dataset.make_one_shot_iterator()
+  yaml_dir = os.path.join(os.path.dirname(__file__), '../test_data/hparams.yml')
+  hparams = hparam.HParams()
+  hparams.from_yaml(yaml_dir)
 
-  sess = tf.Session()
-  # sess.run(iterator.initializer)
-  a = sess.run(iterator.get_next())
-  print(a)
+  data_generator = data_reader.TextDataGenerator('train', hparams)
+
+  index = 1
+  sentence_counter = []
+  while True:
+    try:
+      result = data_generator.get_next()
+      print('* Round: {}'.format(index))
+      print('* Input shape: {}'.format(result[0]['inputs'].shape))
+      print('* Target shape: {}'.format(result[0]['targets'].shape))
+      sentence_counter.append(result[0]['inputs'].shape[0])
+      index += 1
+    except:
+      break
+
+  print('* The total number of sentences: {}'.format(sum(sentence_counter)))
 
 
 if __name__ == '__main__':

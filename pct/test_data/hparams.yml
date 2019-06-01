@@ -1,0 +1,50 @@
+# entry info
+data_dir: /home/murphyhuang/dev/mldata/en_ch_translate
+problem: translate_enzh_wmt32k
+model: universal_transformer
+model_dir: /tmp/ut_trial
+# model
+norm_type: layer
+hidden_size: 512
+clip_grad_norm: 0.
+initializer_gain: 1.0
+initializer: uniform_unit_scaling
+weight_decay: 0.0
+num_sampled_classes: 0
+layer_preprocess_sequence: n
+layer_postprocess_sequence: da
+add_position_timing_signal: True
+local_eval_frequency:
+# data loading
+num_threads:
+batch_size: 4096
+min_length: 0
+max_length: 256
+min_length_bucket: 8
+length_bucket_step: 1.1
+shuffle_files:
+shuffle_buffer_size:
+batch_shuffle_size: 512
+split_to_length: 0
+eval_drop_long_sequences: False
+# bottom transformation
+multiply_embedding_mode: sqrt_depth
+# loss function during training
+label_smoothing: 0.1
+# optimizer
+learning_rate_schedule: legacy
+learning_rate_decay_scheme: noam
+learning_rate: 0.1
+learning_rate_warmup_steps: 4000
+optimizer_adam_beta1: 0.9
+optimizer_adam_beta2: 0.98
+optimizer_adam_epsilon: 1e-9
+# steps
+train_steps: 250000
+eval_steps: 100
+# universal transformer hyper-parameters
+recurrence_type: basic
+num_rec_steps: 6
+num_inrecurrence_layers: 1
+step_timing_signal_type: learned
+add_or_concat_timing_signal: add

@@ -7,6 +7,7 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.python.ops import control_flow_util
+from tensorflow.python.framework import function
 
 
 def layer_prepostprocess(previous_value,
@@ -251,71 +252,6 @@ def cast_like(x, y):
   return cast_x
 
 
-def padded_cross_entropy(logits,
-                         labels,
-                         label_smoothing,
-                         weights_fn=weights_nonzero,
-                         reduce_sum=True,
-                         cutoff=0.0,
-                         gaussian=False):
-  """Compute cross-entropy assuming 0s are padding.
-
-  Computes a loss numerator (the sum of losses), and loss denominator
-  (the number of non-padding tokens).
-
-  Args:
-    logits: a `Tensor` with shape `[batch, timesteps, vocab_size]`.
-      optionally a FactoredTensor.
-    labels: an integer `Tensor` with shape `[batch, timesteps]`.
-    label_smoothing: a floating point `Scalar`.
-    weights_fn: A function from labels to weights.
-    reduce_sum: a Boolean, whether to sum at the end or not.
-    cutoff: a float, at which point to have no loss.
-    gaussian: If true, use a Gaussian distribution for label smoothing
-
-  Returns:
-    loss_numerator: a `Scalar`.  Sum of losses.
-    loss_denominator: a `Scalar.  The number of non-padding target tokens.
-
-  Raises:
-    ValueError: in case of unsupported argument types.
-  """
-  # if isinstance(logits, FactoredTensor):
-  #   if gaussian:
-  #     raise ValueError("Factored padded cross entropy with Gaussian smoothing "
-  #                      "is not implemented yet.")
-  #   return padded_cross_entropy_factored(
-  #       logits,
-  #       labels,
-  #       label_smoothing,
-  #       weights_fn=weights_fn,
-  #       reduce_sum=reduce_sum)
-  confidence = 1.0 - label_smoothing
-  logits_shape = shape_list(logits)
-  vocab_size = logits_shape[-1]
-  with tf.name_scope("padded_cross_entropy", values=[logits, labels]):
-    if len(logits_shape) == 2:
-      # Deal with the case where we did not insert extra dimensions due to
-      # TPU issues.  No pad-to-same-length happens in this case.
-      # TODO(noam): remove this logic once TPU can handle extra dimensions.
-      labels = tf.reshape(labels, [-1])
-    else:
-      logits, labels = pad_with_zeros(logits, labels)
-    logits = tf.reshape(
-        logits,
-        shape_list(labels) + [vocab_size],
-        name="padded_cross_entropy_size_check")
-    logits = tf.cast(logits, tf.float32)
-    xent = smoothing_cross_entropy(
-        logits, labels, vocab_size, confidence, gaussian=gaussian)
-    weights = weights_fn(labels)
-    if cutoff > 0.0:
-      xent = tf.nn.relu(xent - cutoff)
-    if not reduce_sum:
-      return xent * weights, weights
-    return tf.reduce_sum(xent * weights), tf.reduce_sum(weights)
-
-
 def weights_nonzero(labels):
   """Assign weight 1.0 to all labels except for padding (id=0)."""
   return to_float(tf.not_equal(labels, 0))
@@ -422,4 +358,43 @@ def smoothing_cross_entropy(logits,
     xentropy = tf.nn.softmax_cross_entropy_with_logits_v2(
         logits=logits, labels=soft_targets)
     return xentropy - normalizing
+
+
+def should_generate_summaries():
+  """Is this an appropriate context to generate summaries.
+
+  Returns:
+    a boolean
+  """
+  name_scope = tf.contrib.framework.get_name_scope()
+  if name_scope and "while/" in name_scope:
+    # Summaries don't work well within tf.while_loop()
+    return False
+  if tf.get_variable_scope().reuse:
+    # Avoid generating separate summaries for different data shards
+    return False
+  return True
+
+
+@function.Defun(
+    python_grad_func=lambda x, dy: tf.convert_to_tensor(dy),
+    shape_func=lambda op: [op.inputs[0].get_shape()])
+def convert_gradient_to_tensor(x):
+  """Identity operation whose gradient is converted to a `Tensor`.
+
+  Currently, the gradient to `tf.concat` is particularly expensive to
+  compute if dy is an `IndexedSlices` (a lack of GPU implementation
+  forces the gradient operation onto CPU).  This situation occurs when
+  the output of the `tf.concat` is eventually passed to `tf.gather`.
+  It is sometimes faster to convert the gradient to a `Tensor`, so as
+  to get the cheaper gradient for `tf.concat`.  To do this, replace
+  `tf.concat(x)` with `convert_gradient_to_tensor(tf.concat(x))`.
+
+  Args:
+    x: A `Tensor`.
+
+  Returns:
+    The input `Tensor`.
+  """
+  return x
 

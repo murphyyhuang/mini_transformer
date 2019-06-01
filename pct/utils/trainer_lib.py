@@ -6,7 +6,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from pct.utils import data_reader
 
 from tensorflow.core.protobuf import rewriter_config_pb2
 
@@ -26,7 +25,7 @@ def create_session_config(log_device_placement=True,
       optimizer_options=tf.OptimizerOptions(
         opt_level=tf.OptimizerOptions.L1,
         do_function_inlining=False,
-        global_git_level=xla_jit_level,
+        global_jit_level=xla_jit_level,
       )
     )
 

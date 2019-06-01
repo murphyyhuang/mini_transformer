@@ -5,10 +5,11 @@ from __future__ import division
 from __future__ import print_function
 
 
-import tensorflow as tf
+from pct.utils import registry
 from pct.models import universal_transformer_util
 
 
+@registry.register_model
 class UniversalTransformer(object):
 
   def encode(self, encoder_input, hparams):

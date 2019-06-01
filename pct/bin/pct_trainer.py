@@ -7,32 +7,35 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorflow.core.protobuf import rewriter_config_pb2
+from pct.utils import data_reader
+from pct.utils import hparams_lib
+from pct.utils import base_model_lib
+from pct.utils import trainer_lib
 
+# force registration of models
+from pct import models # pylint: disable=unused-import
 
 flags = tf.flags
 FLAGS = flags.FLAGS
 
+flags.DEFINE_integer("random_seed", None, "Random seed.")
+flags.DEFINE_string("config_dir", None, "Directory with training data.")
 
-def create_run_config():
-  pass
-
-
-def create_experiment_fn():
-  pass
-
-
-def schedule_experiment():
-  pass
+session_config = trainer_lib.create_session_config()
+tf.enable_eager_execution(config=session_config)
 
 
 def main(argv):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  create_run_config()
+  # read hyper-parameters
+  assert hasattr(FLAGS, 'config_dir'), "'config_dir' must be given to set all the hyper-parameters of this project."
+  model_hparams = hparams_lib.create_hparams(FLAGS.config_dir)
+  train_data_generator = data_reader.TextDataGenerator(tf.estimator.ModeKeys.TRAIN, model_hparams)
 
-  create_session_config()
+  base_model_lib.train(train_data_generator, model_hparams)
 
-  create_experiment_fn()
 
-  schedule_experiment()
+if __name__ == "__main__":
+  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.app.run()

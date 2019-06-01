@@ -240,16 +240,18 @@ def hparams_to_batching_scheme(hparams,
 
 class TextDataGenerator(object):
 
-  def __init__(self, problem_name, mode, hparams, config):
+  def __init__(self, mode, hparams):
 
-    self.name = problem_name
-    self.input_fn = None
-    self.input_fn_init(mode, hparams, config)
+    self._input_fn = None
+    self._input_fn_init(mode, hparams)
 
-  def input_fn_init(self,
+    self._iterator = self._input_fn.make_one_shot_iterator()
+    # self._initializer = self._iterator.initializer
+    self._hparams = None
+
+  def _input_fn_init(self,
                     mode,
                     hparams,
-                    config,
                     skip_random_fraction_when_training=False):
 
     is_training = mode == tf.estimator.ModeKeys.TRAIN
@@ -257,12 +259,11 @@ class TextDataGenerator(object):
     dataset_kwargs = {}
     # hparams should contain data_dir
     assert hasattr(hparams, 'data_dir'), "HParams loses the attribute data_dir."
-    filepattern = self.filepattern(hparams.data_dir, mode)
-    data_files = sorted(tf.data.Dataset.list_files(filepattern))
+    filepattern = self.filepattern(hparams.data_dir, mode, hparams.problem)
+    data_files = sorted(tf.contrib.slim.parallel_reader.get_data_files(filepattern))
     dataset_kwargs.update({
         "mode": mode,
         "num_threads": num_threads,
-        "hparams": hparams,
         "data_files": data_files
     })
     dataset = self.dataset(**dataset_kwargs)
@@ -287,8 +288,6 @@ class TextDataGenerator(object):
       return example_valid_size(example, hparams.min_length, max_validate_length)
 
     def define_shapes(example):
-      # batch_size = config and config.use_tpu and params["batch_size"]
-      # return standardize_shapes(example, batch_size=batch_size)
       return standardize_shapes(example)
 
     # On GPU, bucket by length
@@ -320,8 +319,7 @@ class TextDataGenerator(object):
       dataset = dataset.shuffle(hparams.batch_shuffle_size)
 
     def prepare_for_output(example):
-      if not config or not config.use_tpu:
-        _summarize_features(example)
+      _summarize_features(example)
       if mode == tf.estimator.ModeKeys.PREDICT:
         example["infer_targets"] = example.pop("targets")
         return example
@@ -331,8 +329,24 @@ class TextDataGenerator(object):
     dataset = dataset.map(prepare_for_output, num_parallel_calls=num_threads)
     dataset = dataset.prefetch(2)
 
-    return dataset
+    self._input_fn = dataset
 
+  # def after_create_session(self, session):
+  #   session.run(self._initializer)
+
+  def get_next(self):
+
+    def parse_iterator_result(result):
+      """Gets features, labels from result."""
+      if isinstance(result, (list, tuple)):
+        if len(result) != 2:
+          raise ValueError(
+            'input_fn should return (features, labels) as a len 2 tuple.')
+        return result[0], result[1]
+      return result, None
+
+    result = self._iterator.get_next()
+    return parse_iterator_result(result)
 
   def dataset(self,
               mode,
@@ -364,7 +378,7 @@ class TextDataGenerator(object):
 
     return dataset
 
-  def filepattern(self, data_dir, mode, shard=None):
+  def filepattern(self, data_dir, mode, name, shard=None):
     """Get filepattern for data files for mode.
 
     Matches mode to a suffix.
@@ -381,7 +395,7 @@ class TextDataGenerator(object):
     Returns:
       filepattern str
     """
-    path = os.path.join(data_dir, self.name)
+    path = os.path.join(data_dir, name)
     shard_str = "-%05d" % shard if shard is not None else ""
     if mode == DatasetSplit.TRAIN:
       suffix = "train"
@@ -419,6 +433,11 @@ class TextDataGenerator(object):
     """
     return (model_hparams.split_to_length or model_hparams.max_length or
             model_hparams.batch_size)
+
+  def get_generator_hparams(self):
+    if self._hparams is not None:
+      return self._hparams
+
 
 
 class DatasetSplit(object):
