@@ -12,6 +12,9 @@ import random
 import os
 import six
 
+from pct.utils import hparams_lib
+from pct.utils import text_encoder
+from pct.utils import hparam
 
 _file_num_records_cache = {}
 
@@ -243,23 +246,25 @@ class TextDataGenerator(object):
   def __init__(self, mode, hparams):
 
     self._input_fn = None
+    self._model_hparams = hparams_lib.copy_hparams(hparams)
     self._input_fn_init(mode, hparams)
+
+    self._hparams = None
+    self._encoders = None
 
     self._iterator = self._input_fn.make_one_shot_iterator()
     # self._initializer = self._iterator.initializer
-    self._hparams = None
 
   def _input_fn_init(self,
                     mode,
-                    hparams,
                     skip_random_fraction_when_training=False):
 
     is_training = mode == tf.estimator.ModeKeys.TRAIN
     num_threads = cpu_count() if is_training else 1
     dataset_kwargs = {}
     # hparams should contain data_dir
-    assert hasattr(hparams, 'data_dir'), "HParams loses the attribute data_dir."
-    filepattern = self.filepattern(hparams.data_dir, mode, hparams.problem)
+    assert hasattr(self._model_hparams, 'data_dir'), "HParams loses the attribute data_dir."
+    filepattern = self.filepattern(self._model_hparams.data_dir, mode, self._model_hparams.problem)
     data_files = sorted(tf.contrib.slim.parallel_reader.get_data_files(filepattern))
     dataset_kwargs.update({
         "mode": mode,
@@ -282,17 +287,17 @@ class TextDataGenerator(object):
     dataset = dataset.map(cast_ints_to_int32, num_parallel_calls=num_threads)
 
     def gpu_valid_size(example):
-      drop_long_sequences = is_training or hparams.eval_drop_long_sequences
-      max_length = self.max_length(hparams)
+      drop_long_sequences = is_training or self._model_hparams.eval_drop_long_sequences
+      max_length = self.max_length(self._model_hparams)
       max_validate_length = max_length if drop_long_sequences else 10 ** 9
-      return example_valid_size(example, hparams.min_length, max_validate_length)
+      return example_valid_size(example, self._model_hparams.min_length, max_validate_length)
 
     def define_shapes(example):
       return standardize_shapes(example)
 
     # On GPU, bucket by length
     dataset = dataset.filter(gpu_valid_size)
-    cur_batching_scheme = hparams_to_batching_scheme(hparams)
+    cur_batching_scheme = hparams_to_batching_scheme(self._model_hparams)
 
     dataset = dataset.apply(
       tf.data.experimental.bucket_by_sequence_length(
@@ -314,9 +319,9 @@ class TextDataGenerator(object):
 
     dataset = dataset.map(define_shapes, num_parallel_calls=num_threads)
 
-    if (is_training and hasattr(hparams, "batch_shuffle_size") and
-        hparams.batch_shuffle_size):
-      dataset = dataset.shuffle(hparams.batch_shuffle_size)
+    if (is_training and hasattr(self._model_hparams, "batch_shuffle_size") and
+        self._model_hparams.batch_shuffle_size):
+      dataset = dataset.shuffle(self._model_hparams.batch_shuffle_size)
 
     def prepare_for_output(example):
       _summarize_features(example)
@@ -324,29 +329,17 @@ class TextDataGenerator(object):
         example["infer_targets"] = example.pop("targets")
         return example
       else:
-        return example, example["targets"]
+        return example
 
     dataset = dataset.map(prepare_for_output, num_parallel_calls=num_threads)
     dataset = dataset.prefetch(2)
 
     self._input_fn = dataset
 
-  # def after_create_session(self, session):
-  #   session.run(self._initializer)
 
   def get_next(self):
-
-    def parse_iterator_result(result):
-      """Gets features, labels from result."""
-      if isinstance(result, (list, tuple)):
-        if len(result) != 2:
-          raise ValueError(
-            'input_fn should return (features, labels) as a len 2 tuple.')
-        return result[0], result[1]
-      return result, None
-
     result = self._iterator.get_next()
-    return parse_iterator_result(result)
+    return result
 
   def dataset(self,
               mode,
@@ -434,10 +427,50 @@ class TextDataGenerator(object):
     return (model_hparams.split_to_length or model_hparams.max_length or
             model_hparams.batch_size)
 
+  def get_feature_encoders(self):
+    if self._encoders is not None:
+      return self._encoders
+
+    source_vocab_filename = os.path.join(
+      self._model_hparams.data_dir,
+      self._model_hparams.source_vocab_filename
+    )
+    target_vocab_filename = os.path.join(
+      self._model_hparams.data_dir,
+      self._model_hparams.target_vocab_filename
+    )
+
+    source_token = text_encoder.SubwordTextEncoder(source_vocab_filename)
+    target_token = text_encoder.SubwordTextEncoder(target_vocab_filename)
+
+    self._encoders = {
+      "inputs": source_token,
+      "targets": target_token,
+    }
+
+    return self._encoders
+
   def get_generator_hparams(self):
     if self._hparams is not None:
       return self._hparams
 
+    # Initialize text encoder
+    _ = self.get_feature_encoders()
+
+    hp = hparam.HParams()
+    hp.add_hparam("vocab_size", {
+      "inputs": self._encoders["inputs"].vocab_size,
+      "targets": self._encoders["targets"].vocab_size
+    })
+
+    # During inference for autoregressive problems, if the batch_size is 1,
+    # the inference will stop when the model predict a text_encoder.EOS_ID
+    # token.
+    # TODO(Murphy): check whether this option is deprecated
+    hp.add_hparam("stop_at_eos", int(True))
+
+    self._hparams = hp
+    return self._hparams
 
 
 class DatasetSplit(object):

@@ -398,3 +398,19 @@ def convert_gradient_to_tensor(x):
   """
   return x
 
+
+def flatten4d3d(x):
+  """Flatten a 4d-tensor into a 3d-tensor by joining width and height."""
+  xshape = shape_list(x)
+  result = tf.reshape(x, [xshape[0], xshape[1] * xshape[2], xshape[3]])
+  return result
+
+
+def shift_right_3d(x, pad_value=None):
+  """Shift the second dimension of x right by one."""
+  if pad_value is None:
+    shifted_targets = tf.pad(x, [[0, 0], [1, 0], [0, 0]])[:, :-1, :]
+  else:
+    shifted_targets = tf.concat([pad_value, x], axis=1)[:, :-1, :]
+  return shifted_targets
+

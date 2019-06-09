@@ -96,8 +96,7 @@ class BaseModel(tf.keras.Model):
                mode=tf.estimator.ModeKeys.TRAIN,
                problem_hparams=None,
                **kwargs):
-    super(BaseModel. self).__init__(
-      trainable=mode == tf.estimator.ModeKeys.TRAIN, name=hparams.model, **kwargs)
+    super(BaseModel, self).__init__(name=hparams.model, **kwargs)
 
     # setup hparams
     self._problem_hparams = problem_hparams
@@ -126,7 +125,7 @@ class BaseModel(tf.keras.Model):
     vocab_size = self._problem_hparams.vocab_size[feature_name]
     modality_name = "symbol_modality_%d_%d" % (vocab_size, self._hparams.hidden_size)
     with tf.variable_scope(modality_name):
-      tf.logging.INFO("Transforming feature '%s' with %s.bottom",
+      tf.logging.info("Transforming feature '%s' with %s.bottom",
                    feature_name,
                    modality_name)
       transformed_features[feature_name] = modalities.symbol_bottom_simple(
@@ -138,7 +137,7 @@ class BaseModel(tf.keras.Model):
     vocab_size = self._problem_hparams.vocab_size[feature_name]
     modality_name = "symbol_modality_%d_%d" % (vocab_size, self._hparams.hidden_size)
     with tf.variable_scope(modality_name):
-      tf.logging.INFO("Transforming feature '%s' with %s.targets_bottom",
+      tf.logging.info("Transforming feature '%s' with %s.targets_bottom",
                    feature_name,
                    modality_name)
       transformed_features[feature_name] = modalities.symbol_bottom_simple(
@@ -156,7 +155,7 @@ class BaseModel(tf.keras.Model):
     modality_name = "symbol_modality_%d_%d" % (vocab_size, self._hparams.hidden_size)
 
     with tf.variable_scope(modality_name):
-      tf.logging.INFO("Transforming body output with %s.top", modality_name)
+      tf.logging.info("Transforming body output with %s.top", modality_name)
       logits = modalities.symbol_top(output, self._hparams, vocab_size)
 
     return logits
@@ -169,7 +168,7 @@ class BaseModel(tf.keras.Model):
     transformed_features = self.bottom(features)
 
     with tf.variable_scope("body"):
-      tf.logging.INFO("Building model body")
+      tf.logging.info("Building model body")
       output = self.body(transformed_features)
     losses = output[-1]
     logits = self.top(output, features)
@@ -182,14 +181,14 @@ class BaseModel(tf.keras.Model):
 
   def set_mode(self, mode):
     """Set hparams with the given mode."""
-    tf.logging.INFO("Setting BaseModel mode to '%s'", mode)
+    tf.logging.info("Setting BaseModel mode to '%s'", mode)
     hparams = hparams_lib.copy_hparams(self._original_hparams)
     hparams.add_hparam("mode", mode)
     # When not in training mode, set all forms of dropout to zero.
     if mode != tf.estimator.ModeKeys.TRAIN:
       for key in hparams.values():
         if key.endswith("dropout") or key == "label_smoothing":
-          tf.logging.INFO("Setting hparams.%s to 0.0", key)
+          tf.logging.info("Setting hparams.%s to 0.0", key)
           setattr(hparams, key, 0.0)
     self._hparams = hparams
 

@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from tqdm import tqdm
 import tensorflow as tf
 
 from pct.utils import registry
@@ -16,11 +15,12 @@ def train(train_generator,
           hparams,
           ):
   hparams = hparams_lib.copy_hparams(hparams)
-
+  generator_hparams = train_generator.get_generator_hparams()
   model_cls = registry.model(hparams.model)
   model = model_cls(
     hparams,
     tf.estimator.ModeKeys.TRAIN,
+    generator_hparams,
   )
 
   optimizer = model.optimizer()
@@ -32,7 +32,7 @@ def train(train_generator,
   )
   # Restore variables on creation if a checkpoint exists.
   checkpoint.restore(tf.train.latest_checkpoint(hparams.model_dir))
-  for step_index in tqdm(range(hparams.train_steps)):
+  for step_index in range(hparams.train_steps):
     features = train_generator.get_next()
 
     with tf.GradientTape() as tape:

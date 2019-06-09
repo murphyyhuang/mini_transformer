@@ -3,6 +3,8 @@ data_dir: /home/murphyhuang/dev/mldata/en_ch_translate
 problem: translate_enzh_wmt32k
 model: universal_transformer
 model_dir: /tmp/ut_trial
+source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
+target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
 # model
 norm_type: layer
 hidden_size: 512
@@ -15,6 +17,8 @@ layer_preprocess_sequence: n
 layer_postprocess_sequence: da
 add_position_timing_signal: True
 local_eval_frequency:
+# word embedding
+symbol_modality_num_shards: 16
 # data loading
 num_threads:
 batch_size: 4096
@@ -32,6 +36,7 @@ multiply_embedding_mode: sqrt_depth
 # loss function during training
 label_smoothing: 0.1
 # optimizer
+optimizer: adam  # omly support adam for current project
 learning_rate_schedule: legacy
 learning_rate_decay_scheme: noam
 learning_rate: 0.1
