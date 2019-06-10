@@ -15,6 +15,15 @@ from pct.models import universal_transformer_util
 
 @registry.register_model
 class UniversalTransformer(base_model.BaseModel):
+  #
+  # def __init__(self,
+  #              hparams,
+  #              mode=tf.estimator.ModeKeys.TRAIN,
+  #              problem_hparams=None,
+  #              **kwargs):
+  #   super(UniversalTransformer, self).__init__(hparams, mode, problem_hparams, **kwargs)
+  #   self.universal_transformer_encoder = universal_transformer_util.universal_transformer_encoder()
+  #   self.universal_transformer_decoder = universal_transformer_util.universal_transformer_decoder()
 
   def encode(self, encoder_input, hparams):
 
@@ -59,18 +68,20 @@ class UniversalTransformer(base_model.BaseModel):
       # preparation as we do it in the beginning of each step.
       hparams.pos = None
 
-    if self.has_input:
-      inputs = features["inputs"]
-      (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
-    else:
-      (encoder_output, enc_extra_output) = (None, (None, None))
+    inputs = features["inputs"]
+    inputs = common_layers.flatten4d3d(inputs)
+    (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
+    # if self.has_input:
+    #   inputs = features["inputs"]
+    #   (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
+    # else:
+    #   (encoder_output, enc_extra_output) = (None, (None, None))
 
     targets = features["targets"]
     targets = common_layers.flatten4d3d(targets)
 
     (decoder_input,
-     decoder_self_attention_bias) = transformer_prepare_decoder(
-         targets, hparams, features=features)
+     decoder_self_attention_bias) = transformer_prepare_decoder(targets)
 
     decoder_output, dec_extra_output = self.decode(
         decoder_input,

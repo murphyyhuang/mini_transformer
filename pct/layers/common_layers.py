@@ -5,9 +5,19 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import numpy as np
 import tensorflow_probability as tfp
 from tensorflow.python.ops import control_flow_util
 from tensorflow.python.framework import function
+
+
+class LayerPrepostprocess(object):
+
+  def __init__(self):
+    pass
+
+  def call(self):
+    pass
 
 
 def layer_prepostprocess(previous_value,
@@ -28,6 +38,7 @@ def layer_prepostprocess(previous_value,
       else:
         tf.logging.error('Unknown type of layer pre-post processing command.')
         raise ValueError
+    return x
 
 
 def layer_preprocess(layer_input, hparams):
@@ -107,25 +118,6 @@ def group_norm(x, filters=None, num_groups=8, epsilon=1e-5):
   return tf.reshape(norm_x, x_shape) * scale + bias
 
 
-def dense_relu_dense(inputs, filter_size, output_size):
-  h = dense(
-    inputs,
-    filter_size,
-    use_bias=True,
-    activation=tf.nn.relu,
-    name='conv1',
-  )
-
-  o = dense(
-    h,
-    output_size,
-    activation=None,
-    use_bias=True,
-    name='conv2',
-  )
-  return o
-
-
 def layer_norm_vars(filters):
   """Create Variables for layer norm."""
   scale = tf.get_variable(
@@ -150,6 +142,49 @@ def layer_norm_compute(x, epsilon, scale, bias, layer_collection=None):
   output = norm_x * scale + bias
 
   return output
+
+
+class DenseReluDense(object):
+
+  def __init__(self):
+    pass
+
+  def call(self):
+    pass
+
+
+def dense_relu_dense(inputs, filter_size, output_size):
+  h = dense(
+    inputs,
+    filter_size,
+    use_bias=True,
+    activation=tf.nn.relu,
+    name='conv1',
+  )
+
+  o = dense(
+    h,
+    output_size,
+    activation=None,
+    use_bias=True,
+    name='conv2',
+  )
+  return o
+
+
+class Dense(object):
+
+  def __init__(self):
+    pass
+
+  def call(self):
+    pass
+
+
+def dense(x, units, **kwargs):
+  """Identical to layers.dense."""
+  activations = tf.keras.layers.Dense(units, **kwargs)(x)
+  return activations
 
 
 def shape_list(x):
@@ -191,12 +226,6 @@ def cast_like(x, y):
   return cast_x
 
 
-def dense(x, units, **kwargs):
-  """Identical to layers.dense."""
-  activations = tf.layers.Dense(units, **kwargs)(x)
-  return activations
-
-
 def gather(params, indices, dtype=tf.float32):
   """Version of tf.gather that works faster on tpu."""
   if not is_xla_compiled():
@@ -230,26 +259,6 @@ def reshape_like(a, b):
   if not tf.executing_eagerly():
     ret.set_shape(b.get_shape().as_list()[:-1] + a.get_shape().as_list()[-1:])
   return ret
-
-
-def cast_like(x, y):
-  """Cast x to y's dtype, if necessary."""
-  x = tf.convert_to_tensor(x)
-  y = tf.convert_to_tensor(y)
-
-  if x.dtype.base_dtype == y.dtype.base_dtype:
-    return x
-
-  cast_x = tf.cast(x, y.dtype)
-  if cast_x.device != x.device:
-    x_name = "(eager Tensor)"
-    try:
-      x_name = x.name
-    except AttributeError:
-      pass
-    tf.logging.warning("Cast for %s may induce copy from '%s' to '%s'", x_name,
-                       x.device, cast_x.device)
-  return cast_x
 
 
 def weights_nonzero(labels):
@@ -413,4 +422,41 @@ def shift_right_3d(x, pad_value=None):
   else:
     shifted_targets = tf.concat([pad_value, x], axis=1)[:, :-1, :]
   return shifted_targets
+
+
+def ones_matrix_band_part(rows, cols, num_lower, num_upper, out_shape=None):
+  """Matrix band part of ones.
+
+  Args:
+    rows: int determining number of rows in output
+    cols: int
+    num_lower: int, maximum distance backward. Negative values indicate
+      unlimited.
+    num_upper: int, maximum distance forward. Negative values indicate
+      unlimited.
+    out_shape: shape to reshape output by.
+
+  Returns:
+    Tensor of size rows * cols reshaped into shape out_shape.
+  """
+  if all([isinstance(el, int) for el in [rows, cols, num_lower, num_upper]]):
+    # Needed info is constant, so we construct in numpy
+    if num_lower < 0:
+      num_lower = rows - 1
+    if num_upper < 0:
+      num_upper = cols - 1
+    lower_mask = np.tri(cols, rows, num_lower).T
+    upper_mask = np.tri(rows, cols, num_upper)
+    band = np.ones((rows, cols)) * lower_mask * upper_mask
+    if out_shape:
+      band = band.reshape(out_shape)
+    band = tf.constant(band, tf.float32)
+  else:
+    band = tf.matrix_band_part(
+        tf.ones([rows, cols]), tf.cast(num_lower, tf.int64),
+        tf.cast(num_upper, tf.int64))
+    if out_shape:
+      band = tf.reshape(band, out_shape)
+
+  return band
 

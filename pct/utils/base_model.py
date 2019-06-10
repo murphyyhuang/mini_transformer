@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import contextlib
 import six
-import math
 import collections
 import tensorflow as tf
 
@@ -75,16 +74,13 @@ def average_sharded_losses(sharded_losses):
     losses: dict<str loss_name, Tensor avg_loss>
   """
   losses = {}
-  for loss_name in sorted(sharded_losses[0]):
-    all_shards = [shard_losses[loss_name] for shard_losses in sharded_losses]
-    if isinstance(all_shards[0], tuple):
-      sharded_num, sharded_den = zip(*all_shards)
-      mean_loss = (
-          tf.add_n(sharded_num) / tf.maximum(
-              tf.cast(1.0, sharded_den[0].dtype), tf.add_n(sharded_den)))
+  for loss_name in sorted(sharded_losses):
+    all_shards = sharded_losses[loss_name]
+    if isinstance(all_shards, tuple):
+      sharded_num, sharded_den = all_shards
+      mean_loss = sharded_num / sharded_den
     else:
       mean_loss = tf.reduce_mean(all_shards)
-
     losses[loss_name] = mean_loss
   return losses
 
@@ -114,8 +110,11 @@ class BaseModel(tf.keras.Model):
       optimize.get_variable_initializer(self.hparams))
     with self._eager_var_store.as_default():
       summarize_features(features)
-      sharded_logits, losses = self.model_fn(features)
-      return tf.concat(sharded_logits, 0), losses
+      logits, losses_dict = self.model_fn(features)
+
+      # sum up different kinds of loss
+      loss = sum(losses_dict[key] for key in sorted(losses_dict.keys()))
+      return logits, loss
 
   def bottom(self, features):
     transformed_features = collections.OrderedDict()
@@ -161,7 +160,7 @@ class BaseModel(tf.keras.Model):
     return logits
 
   def loss(self, logits, features):
-    loss_num, loss_den = modalities.generic_loss(logits, features, self._hparams)
+    loss_num, loss_den = modalities.generic_loss(logits, features['targets'], self._hparams)
     return loss_num, loss_den
 
   def model_fn(self, features):
@@ -169,8 +168,9 @@ class BaseModel(tf.keras.Model):
 
     with tf.variable_scope("body"):
       tf.logging.info("Building model body")
-      output = self.body(transformed_features)
-    losses = output[-1]
+      body_out = self.body(transformed_features)
+    # losses = output[-1]
+    output, losses = self._normalize_body_output(body_out)
     logits = self.top(output, features)
 
     if self._hparams.mode == tf.estimator.ModeKeys.TRAIN:
@@ -202,6 +202,22 @@ class BaseModel(tf.keras.Model):
       epsilon=self._hparams.optimizer_adam_epsilon,
     )
     return optimizer
+
+  @staticmethod
+  def _normalize_body_output(body_out):
+    if isinstance(body_out, tuple):
+      output, losses = body_out
+      if isinstance(losses, (list, tuple)):
+        losses = {"extra": tf.add_n([tf.reduce_mean(l) for l in losses])}
+      elif isinstance(losses, dict):
+        pass
+      else:
+        losses = {"extra": tf.reduce_mean(losses)}
+    else:
+      output = body_out
+      losses = {"extra": 0.0}
+
+    return output, losses
 
   @property
   def hparams(self):

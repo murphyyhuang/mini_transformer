@@ -36,8 +36,8 @@ def train(train_generator,
     features = train_generator.get_next()
 
     with tf.GradientTape() as tape:
-      logits, losses = model(features)
-      grads = tape.gradient(losses, model.trainable_variables)
+      logits, loss = model(features)
+      grads = tape.gradient(loss, model.trainable_variables)
       optimizer.apply_gradients(
         zip(grads, model.trainable_variables),
         global_step=step_counter)

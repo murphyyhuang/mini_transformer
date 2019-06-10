@@ -8,6 +8,7 @@ target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
 # model
 norm_type: layer
 hidden_size: 512
+filter_size: 2048
 clip_grad_norm: 0.
 initializer_gain: 1.0
 initializer: uniform_unit_scaling
@@ -17,11 +18,12 @@ layer_preprocess_sequence: n
 layer_postprocess_sequence: da
 add_position_timing_signal: True
 local_eval_frequency:
+norm_epsilon: 1e-6
 # word embedding
 symbol_modality_num_shards: 16
 # data loading
 num_threads:
-batch_size: 4096
+batch_size: 1024
 min_length: 0
 max_length: 256
 min_length_bucket: 8
@@ -53,3 +55,5 @@ num_rec_steps: 6
 num_inrecurrence_layers: 1
 step_timing_signal_type: learned
 add_or_concat_timing_signal: add
+add_step_timing_signal: True
+num_heads: 8
