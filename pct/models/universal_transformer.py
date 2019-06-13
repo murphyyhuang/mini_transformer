@@ -15,40 +15,42 @@ from pct.models import universal_transformer_util
 
 @registry.register_model
 class UniversalTransformer(base_model.BaseModel):
-  #
-  # def __init__(self,
-  #              hparams,
-  #              mode=tf.estimator.ModeKeys.TRAIN,
-  #              problem_hparams=None,
-  #              **kwargs):
-  #   super(UniversalTransformer, self).__init__(hparams, mode, problem_hparams, **kwargs)
-  #   self.universal_transformer_encoder = universal_transformer_util.universal_transformer_encoder()
-  #   self.universal_transformer_decoder = universal_transformer_util.universal_transformer_decoder()
 
-  def encode(self, encoder_input, hparams):
+  def __init__(self,
+               hparams,
+               mode=tf.estimator.ModeKeys.TRAIN,
+               problem_hparams=None,
+               **kwargs):
+    super(UniversalTransformer, self).__init__(hparams, mode, problem_hparams, **kwargs)
+
+    self.universal_transformer_encoder = universal_transformer_util.UniversalTransformerEncoder(
+      hparams
+    )
+    self.universal_transformer_decoder = universal_transformer_util.UniversalTransformerDecoder(
+      hparams
+    )
+
+  def encode(self, encoder_input, training):
 
     (encoder_output, encoder_extra_output) = (
-      universal_transformer_util.universal_transformer_encoder(
-        encoder_input,
-        hparams
-      )
+      self.universal_transformer_encoder(encoder_input, training)
     )
 
     return encoder_output, encoder_extra_output
 
-  def decode(self, decoder_input, encoder_output, hparams):
+  def decode(self, decoder_input, encoder_output, training):
 
     (decoder_output, dec_extra_output) = (
-      universal_transformer_util.universal_transformer_decoder(
+      self.universal_transformer_decoder(
         decoder_input,
         encoder_output,
-        hparams
+        training
       )
     )
 
     return decoder_output, dec_extra_output
 
-  def body(self, features):
+  def body(self, features, training):
     """Universal Transformer main model_fn.
 
 
@@ -70,7 +72,7 @@ class UniversalTransformer(base_model.BaseModel):
 
     inputs = features["inputs"]
     inputs = common_layers.flatten4d3d(inputs)
-    (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
+    (encoder_output, enc_extra_output) = self.encode(inputs, training)
     # if self.has_input:
     #   inputs = features["inputs"]
     #   (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
@@ -86,7 +88,8 @@ class UniversalTransformer(base_model.BaseModel):
     decoder_output, dec_extra_output = self.decode(
         decoder_input,
         encoder_output,
-        hparams)
+        training
+    )
 
     expected_attentions = features.get("expected_attentions")
     if expected_attentions is not None:

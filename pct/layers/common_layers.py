@@ -11,180 +11,271 @@ from tensorflow.python.ops import control_flow_util
 from tensorflow.python.framework import function
 
 
-class LayerPrepostprocess(object):
+class LayerPrepostprocess(tf.keras.Model):
 
-  def __init__(self):
-    pass
+  def __init__(self,
+               process_type,
+               hparams,):
+    super(LayerPrepostprocess, self).__init__()
+    
+    if process_type == "pre":
+      self._process_sequence = hparams.layer_preprocess_sequence
+    elif process_type == "post":
+      self._process_sequence = hparams.layer_postprocess_sequence
+    else:
+      raise ValueError("Unknown input process_type. It should be selected in ['pre', 'post']")
 
-  def call(self):
-    pass
+    if 'n' in self._process_sequence:
+      if hparams.norm_type == "layer":
+        self.norm_block = LayerNorm(hparams.hidden_size, hparams.norm_epsilon)
+      elif hparams.norm_type == "group":
+        self.norm_block = GroupNorm(hparams.hidden_size, hparams.norm_epsilon)
 
-
-def layer_prepostprocess(previous_value,
-                         x,
-                         sequence,
-                         norm_type,
-                         depth,
-                         epsilon,
-                         default_name=None):
-  with tf.variable_scope(default_name):
-    if sequence == 'none':
+  def call(self, previous_value=None, x=None, training=False):
+    if self._process_sequence == 'none':
       return x
-    for c in sequence:
+    for c in self._process_sequence:
       if c == 'a':
         x += previous_value
       elif c == 'n':
-        x = apply_norm(x, norm_type, depth, epsilon)
+        x = self.norm_block(x, training)
       else:
         tf.logging.error('Unknown type of layer pre-post processing command.')
         raise ValueError
     return x
 
 
-def layer_preprocess(layer_input, hparams):
-  assert "a" not in hparams.layer_preprocess_sequence, (
-    "No residual connections allowed in hparams.layer_preprocess_sequence")
-  return layer_prepostprocess(
-    None,
-    layer_input,
-    sequence=hparams.layer_preprocess_sequence,
-    norm_type=hparams.norm_type,
-    depth=None,
-    epsilon=hparams.norm_epsilon,
-    default_name='layer_prepostprocess')
+# [DEPRECATED tf.estimator]
+# def layer_prepostprocess(previous_value,
+#                          x,
+#                          sequence,
+#                          norm_type,
+#                          depth,
+#                          epsilon,
+#                          default_name=None):
+#   with tf.variable_scope(default_name):
+#     if sequence == 'none':
+#       return x
+#     for c in sequence:
+#       if c == 'a':
+#         x += previous_value
+#       elif c == 'n':
+#         x = apply_norm(x, norm_type, depth, epsilon)
+#       else:
+#         tf.logging.error('Unknown type of layer pre-post processing command.')
+#         raise ValueError
+#     return x
+#
+#
+# def layer_preprocess(layer_input, hparams):
+#   assert "a" not in hparams.layer_preprocess_sequence, (
+#     "No residual connections allowed in hparams.layer_preprocess_sequence")
+#   return layer_prepostprocess(
+#     None,
+#     layer_input,
+#     sequence=hparams.layer_preprocess_sequence,
+#     norm_type=hparams.norm_type,
+#     depth=None,
+#     epsilon=hparams.norm_epsilon,
+#     default_name='layer_prepostprocess')
+#
+#
+# def layer_postprocess(layer_input, layer_output, hparams):
+#   return layer_prepostprocess(
+#     layer_input,
+#     layer_output,
+#     sequence=hparams.layer_postprocess_sequence,
+#     norm_type=hparams.norm_type,
+#     depth=None,
+#     epsilon=hparams.norm_epsilon,
+#     default_name='layer_postprocess'
+#   )
+#
+#
+# def apply_norm(x, norm_type, depth, epsilon, layer_collection=None):
+#   """Apply Normalization."""
+#   if layer_collection is not None:
+#     assert norm_type == "layer"
+#   if norm_type == "layer":
+#     return layer_norm(
+#         x, filters=depth, epsilon=epsilon, layer_collection=layer_collection)
+#   if norm_type == "group":
+#     return group_norm(x, filters=depth, epsilon=epsilon)
+#   if norm_type == "none":
+#     return x
+#   raise ValueError("Parameter normalizer_fn must be one of: 'layer', 'batch',"
+#                    "'noam', 'lr', 'none'.")
 
 
-def layer_postprocess(layer_input, layer_output, hparams):
-  return layer_prepostprocess(
-    layer_input,
-    layer_output,
-    sequence=hparams.layer_preprocess_sequence,
-    norm_type=hparams.norm_type,
-    depth=None,
-    epsilon=hparams.norm_epsilon,
-    default_name='layer_postprocess'
-  )
+class LayerNorm(tf.keras.Model):
+  def __init__(self, vector_dim, norm_epsilon):
+    """Create Variables for layer norm."""
+    super(LayerNorm, self).__init__()
+    self._epsilon = norm_epsilon
+    self._scale = tf.get_variable(
+      "layer_norm_scale", [vector_dim], initializer=tf.ones_initializer())
+    self._bias = tf.get_variable(
+      "layer_norm_bias", [vector_dim], initializer=tf.zeros_initializer())
 
-
-def apply_norm(x, norm_type, depth, epsilon, layer_collection=None):
-  """Apply Normalization."""
-  if layer_collection is not None:
-    assert norm_type == "layer"
-  if norm_type == "layer":
-    return layer_norm(
-        x, filters=depth, epsilon=epsilon, layer_collection=layer_collection)
-  if norm_type == "group":
-    return group_norm(x, filters=depth, epsilon=epsilon)
-  if norm_type == "none":
-    return x
-  raise ValueError("Parameter normalizer_fn must be one of: 'layer', 'batch',"
-                   "'noam', 'lr', 'none'.")
-
-
-def layer_norm(x,
-               filters=None,
-               epsilon=1e-6,
-               name=None,
-               reuse=None,
-               layer_collection=None):
-  """Layer normalize the tensor x, averaging over the last dimension."""
-  if filters is None:
-    filters = shape_list(x)[-1]
-  with tf.variable_scope(
-      name, default_name="layer_norm", values=[x], reuse=reuse):
-    scale, bias = layer_norm_vars(filters)
-    return layer_norm_compute(x, epsilon, scale, bias,
-                              layer_collection=layer_collection)
-
-
-def group_norm(x, filters=None, num_groups=8, epsilon=1e-5):
-  """Group normalization as in https://arxiv.org/abs/1803.08494."""
-  x_shape = shape_list(x)
-  if filters is None:
-    filters = x_shape[-1]
-  assert len(x_shape) == 4
-  assert filters % num_groups == 0
-  # Prepare variables.
-  scale = tf.get_variable(
-      "group_norm_scale", [filters], initializer=tf.ones_initializer())
-  bias = tf.get_variable(
-      "group_norm_bias", [filters], initializer=tf.zeros_initializer())
-  epsilon, scale, bias = [cast_like(t, x) for t in [epsilon, scale, bias]]
-  # Reshape and compute group norm.
-  x = tf.reshape(x, x_shape[:-1] + [num_groups, filters // num_groups])
-  # Calculate mean and variance on heights, width, channels (not groups).
-  mean, variance = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
-  norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
-  return tf.reshape(norm_x, x_shape) * scale + bias
-
-
-def layer_norm_vars(filters):
-  """Create Variables for layer norm."""
-  scale = tf.get_variable(
-      "layer_norm_scale", [filters], initializer=tf.ones_initializer())
-  bias = tf.get_variable(
-      "layer_norm_bias", [filters], initializer=tf.zeros_initializer())
-  return scale, bias
-
-
-def layer_norm_compute(x, epsilon, scale, bias, layer_collection=None):
-  """Layer norm raw computation."""
-
-  # Save these before they get converted to tensors by the casting below
-  params = (scale, bias)
-
-  epsilon, scale, bias = [cast_like(t, x) for t in [epsilon, scale, bias]]
-  mean = tf.reduce_mean(x, axis=[-1], keepdims=True)
-  variance = tf.reduce_mean(
+  def call(self, x, training=False, mask=None):
+    epsilon, scale, bias = [cast_like(t, x) for t in [self._epsilon, self._scale, self._bias]]
+    mean = tf.reduce_mean(x, axis=[-1], keepdims=True)
+    variance = tf.reduce_mean(
       tf.squared_difference(x, mean), axis=[-1], keepdims=True)
-  norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
+    norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
 
-  output = norm_x * scale + bias
+    output = norm_x * scale + bias
 
-  return output
-
-
-class DenseReluDense(object):
-
-  def __init__(self):
-    pass
-
-  def call(self):
-    pass
+    return output
 
 
-def dense_relu_dense(inputs, filter_size, output_size):
-  h = dense(
-    inputs,
-    filter_size,
-    use_bias=True,
-    activation=tf.nn.relu,
-    name='conv1',
-  )
+class GroupNorm(tf.keras.Model):
+  """Group normalization as in https://arxiv.org/abs/1803.08494."""
 
-  o = dense(
-    h,
-    output_size,
-    activation=None,
-    use_bias=True,
-    name='conv2',
-  )
-  return o
+  def __init__(self, vector_dim, norm_epsilon, num_groups=8):
+    super(GroupNorm, self).__init__()
+    self._epsilon = norm_epsilon
+    self._num_groups = num_groups
+    self._vector_dim = vector_dim
+
+    # Prepare variables.
+    self._scale = tf.get_variable(
+      "group_norm_scale", [vector_dim], initializer=tf.ones_initializer())
+    self._bias = tf.get_variable(
+      "group_norm_bias", [vector_dim], initializer=tf.zeros_initializer())
+
+  def call(self, x, training=False, mask=None):
+    x_shape = shape_list(x)
+    filters = x_shape[-1]
+    assert filters == self._vector_dim, "Disagreement found here."
+    epsilon, scale, bias = [cast_like(t, x) for t in [self._epsilon, self._scale, self._bias]]
+    x = tf.reshape(x,  x_shape[:-1] + [self._num_groups, filters // self._num_groups])
+    mean, variance = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+    norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
+    return tf.reshape(norm_x, x_shape) * scale + bias
+
+# [DEPRECATED tf.estimator]
+# def group_norm(x, filters=None, num_groups=8, epsilon=1e-5):
+#   """Group normalization as in https://arxiv.org/abs/1803.08494."""
+#   x_shape = shape_list(x)
+#   if filters is None:
+#     filters = x_shape[-1]
+#   assert len(x_shape) == 4
+#   assert filters % num_groups == 0
+#   # Prepare variables.
+#   scale = tf.get_variable(
+#       "group_norm_scale", [filters], initializer=tf.ones_initializer())
+#   bias = tf.get_variable(
+#       "group_norm_bias", [filters], initializer=tf.zeros_initializer())
+#   epsilon, scale, bias = [cast_like(t, x) for t in [epsilon, scale, bias]]
+#   # Reshape and compute group norm.
+#   x = tf.reshape(x, x_shape[:-1] + [num_groups, filters // num_groups])
+#   # Calculate mean and variance on heights, width, channels (not groups).
+#   mean, variance = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+#   norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
+#   return tf.reshape(norm_x, x_shape) * scale + bias
+
+# [DEPRECATED tf.estimator]
+# def layer_norm(x,
+#                filters=None,
+#                epsilon=1e-6,
+#                name=None,
+#                reuse=None,
+#                layer_collection=None):
+#   """Layer normalize the tensor x, averaging over the last dimension."""
+#   if filters is None:
+#     filters = shape_list(x)[-1]
+#   with tf.variable_scope(
+#       name, default_name="layer_norm", values=[x], reuse=reuse):
+#     scale, bias = layer_norm_vars(filters)
+#     return layer_norm_compute(x, epsilon, scale, bias,
+#                               layer_collection=layer_collection)
+#
+#
+# def layer_norm_vars(filters):
+#   """Create Variables for layer norm."""
+#   scale = tf.get_variable(
+#       "layer_norm_scale", [filters], initializer=tf.ones_initializer())
+#   bias = tf.get_variable(
+#       "layer_norm_bias", [filters], initializer=tf.zeros_initializer())
+#   return scale, bias
+#
+#
+# def layer_norm_compute(x, epsilon, scale, bias, layer_collection=None):
+#   """Layer norm raw computation."""
+#
+#   # Save these before they get converted to tensors by the casting below
+#   params = (scale, bias)
+#
+#   epsilon, scale, bias = [cast_like(t, x) for t in [epsilon, scale, bias]]
+#   mean = tf.reduce_mean(x, axis=[-1], keepdims=True)
+#   variance = tf.reduce_mean(
+#       tf.squared_difference(x, mean), axis=[-1], keepdims=True)
+#   norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
+#
+#   output = norm_x * scale + bias
+#
+#   return output
 
 
-class Dense(object):
+class DenseReluDense(tf.keras.Model):
 
-  def __init__(self):
-    pass
+  def __init__(self, filter_size, output_size):
+    super(DenseReluDense, self).__init__()
+    self.dense_input_unit = Dense(
+      filter_size,
+      use_bias=True,
+      activation=tf.nn.relu,
+    )
 
-  def call(self):
-    pass
+    self.dense_output_unit = Dense(
+      output_size,
+      use_bias=True,
+      activation=None,
+    )
+
+  def call(self, inputs, training=False, mask=None):
+    hidden_mat = self.dense_input_unit(inputs, training)
+    output_mat = self.dense_output_unit(hidden_mat, training)
+
+    return output_mat
+
+# [DEPRECATED tf.estimator]
+# def dense_relu_dense(inputs, filter_size, output_size):
+#   h = dense(
+#     inputs,
+#     filter_size,
+#     use_bias=True,
+#     activation=tf.nn.relu,
+#     name='conv1',
+#   )
+#
+#   o = dense(
+#     h,
+#     output_size,
+#     activation=None,
+#     use_bias=True,
+#     name='conv2',
+#   )
+#   return o
 
 
-def dense(x, units, **kwargs):
-  """Identical to layers.dense."""
-  activations = tf.keras.layers.Dense(units, **kwargs)(x)
-  return activations
+class Dense(tf.keras.Model):
+  """
+  Identical to tf.keras.layers.Dense
+  """
+  def __init__(self, units, **kwargs):
+    super(Dense, self).__init__()
+    self.activations = tf.keras.layers.Dense(units, **kwargs)
+
+  def call(self, x, training=False, mask=None):
+    return self.activations(x)
+
+# [DEPRECATED tf.estimator]
+# def dense(x, units, **kwargs):
+#   """Identical to layers.dense."""
+#   activations = tf.keras.layers.Dense(units, **kwargs)(x)
+#   return activations
 
 
 def shape_list(x):

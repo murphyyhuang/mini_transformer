@@ -7,20 +7,20 @@ source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
 target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
 # model
 norm_type: layer
-hidden_size: 512
-filter_size: 2048
+hidden_size: 1024
+filter_size: 4096
 clip_grad_norm: 0.
 initializer_gain: 1.0
 initializer: uniform_unit_scaling
 weight_decay: 0.0
 num_sampled_classes: 0
 layer_preprocess_sequence: n
-layer_postprocess_sequence: da
+layer_postprocess_sequence: a # do not consider dropout
 add_position_timing_signal: True
 local_eval_frequency:
 norm_epsilon: 1e-6
 # word embedding
-symbol_modality_num_shards: 16
+#symbol_modality_num_shards: 16
 # data loading
 num_threads:
 batch_size: 1024
@@ -52,7 +52,7 @@ eval_steps: 100
 # universal transformer hyper-parameters
 recurrence_type: basic
 num_rec_steps: 6
-num_inrecurrence_layers: 1
+# num_inrecurrence_layers: 1 # no-use
 step_timing_signal_type: learned
 add_or_concat_timing_signal: add
 add_step_timing_signal: True

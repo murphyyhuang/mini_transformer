@@ -11,71 +11,109 @@ import tensorflow_probability as tfp
 from pct.layers import common_layers
 
 
-class MultiheadAttention(object):
+class MultiheadAttention(tf.keras.Model):
 
-  def __init__(self):
-    pass
+  def __init__(self,
+               total_key_depth,
+               total_value_depth,
+               output_depth,
+               num_heads=8,
+               ):
+    super(MultiheadAttention, self).__init__()
 
-  def call(self):
-    pass
+    self._total_key_depth = total_key_depth
+    self._total_value_depth = total_value_depth
+    self._output_depth = output_depth
+    self._num_heads = num_heads
 
+    self.q_dense_block = common_layers.Dense(self._total_key_depth, use_bias=False)
+    self.k_dense_block = common_layers.Dense(self._total_key_depth, use_bias=False)
+    self.v_dense_block = common_layers.Dense(self._total_value_depth, use_bias=False)
 
-def multihead_attention(query_antecedent,
-                        memory_antecedent,
-                        total_key_depth,
-                        total_value_depth,
-                        output_depth,
-                        num_heads,
-                        cache=None,
-                        name='multihead_attention'):
-  with tf.variable_scope(name):
-    if cache is None or memory_antecedent is None:
-      q, k, v = compute_qkv(query_antecedent, None, total_key_depth, total_value_depth)
+    self.multi_head_concat_block = common_layers.Dense(self._output_depth, use_bias=False)
 
-    q = split_heads(q, num_heads)
-    if cache is None:
-      k = split_heads(k, num_heads)
-      v = split_heads(v, num_heads)
+  def call(self,
+           query_antecedent,
+           memory_antecedent,
+           training=False,
+           mask=None,
+           ):
+    q = self.q_dense_block(query_antecedent, training)
+    if memory_antecedent is None:
+      memory_antecedent = query_antecedent
+    k = self.k_dense_block(memory_antecedent, training)
+    v = self.v_dense_block(memory_antecedent, training)
 
-    key_depth_per_head = total_key_depth // num_heads
+    q = split_heads(q, self._num_heads)
+    k = split_heads(k, self._num_heads)
+    v = split_heads(v, self._num_heads)
+
+    key_depth_per_head = self._total_key_depth // self._num_heads
     q *= key_depth_per_head ** -0.5
-
     x = dot_product_attention(q, k, v, None)
     x = combine_heads(x)
 
-    x = common_layers.dense(
-      x, output_depth, use_bias=False, name="output_transform")
+    x = self.multi_head_concat_block(x, training)
 
     return x
 
-
-def compute_qkv(query_antecedent,
-                memory_antecedent,
-                total_key_depth,
-                total_value_depth):
-  """
-
-  :param query_antecedent:
-  :param memory_antecedent:
-  :param total_key_depth:
-  :param total_value_depth:
-  :return:
-    q, k, v : [batch, length, depth] tensors
-  """
-
-  if memory_antecedent is None:
-    memory_antecedent = query_antecedent
-
-  q = compute_attention_component(query_antecedent, total_key_depth, "q")
-  k = compute_attention_component(memory_antecedent, total_key_depth, "k")
-  v = compute_attention_component(memory_antecedent, total_value_depth, "v")
-
-  return q, k, v
-
-
-def compute_attention_component(antecedent, total_depth, name='None'):
-  dense_result = common_layers.dense(antecedent, total_depth, use_bias=False, name=name)
-  return dense_result
+# [DEPRECATED tf.estimator]
+# def multihead_attention(query_antecedent,
+#                         memory_antecedent,
+#                         total_key_depth,
+#                         total_value_depth,
+#                         output_depth,
+#                         num_heads,
+#                         cache=None,
+#                         name='multihead_attention'):
+#   with tf.variable_scope(name):
+#     if cache is None or memory_antecedent is None:
+#       q, k, v = compute_qkv(query_antecedent, None, total_key_depth, total_value_depth)
+#
+#     q = split_heads(q, num_heads)
+#     if cache is None:
+#       k = split_heads(k, num_heads)
+#       v = split_heads(v, num_heads)
+#
+#     key_depth_per_head = total_key_depth // num_heads
+#     q *= key_depth_per_head ** -0.5
+#
+#     x = dot_product_attention(q, k, v, None)
+#     x = combine_heads(x)
+#
+#     x = common_layers.dense(
+#       x, output_depth, use_bias=False, name="output_transform")
+#
+#     return x
+#
+#
+# def compute_qkv(query_antecedent,
+#                 memory_antecedent,
+#                 total_key_depth,
+#                 total_value_depth):
+#   """
+#
+#   :param query_antecedent:
+#   :param memory_antecedent:
+#   :param total_key_depth:
+#   :param total_value_depth:
+#   :return:
+#     q, k, v : [batch, length, depth] tensors
+#   """
+#
+#   if memory_antecedent is None:
+#     memory_antecedent = query_antecedent
+#
+#   q = compute_attention_component(query_antecedent, total_key_depth, "q")
+#   k = compute_attention_component(memory_antecedent, total_key_depth, "k")
+#   v = compute_attention_component(memory_antecedent, total_value_depth, "v")
+#
+#   return q, k, v
+#
+#
+# def compute_attention_component(antecedent, total_depth, name='None'):
+#   dense_result = common_layers.dense(antecedent, total_depth, use_bias=False, name=name)
+#   return dense_result
 
 
 def split_heads(x, num_heads):
@@ -140,20 +178,18 @@ def dot_product_attention(q,
                           k,
                           v,
                           bias,
-                          name=None,
                           activation_type=None,
                           weight_dtype=None):
-  with tf.variable_scope(
-    name, default_name="dot_product_attention"):
-    logits = tf.matmul(q, k, transpose_b=True)
-    if bias is not None:
-      bias = common_layers.cast_like(bias, logits)
-      logits += bias
-    # if logits are fp16, upcast before softmax
-    logits = maybe_upcast(logits, activation_type, weight_dtype)
-    weights = tf.nn.softmax(logits, name="attention_weights")
-    weights = common_layers.cast_like(weights, q)
-    return tf.matmul(weights, v)
+
+  logits = tf.matmul(q, k, transpose_b=True)
+  if bias is not None:
+    bias = common_layers.cast_like(bias, logits)
+    logits += bias
+  # if logits are fp16, upcast before softmax
+  logits = maybe_upcast(logits, activation_type, weight_dtype)
+  weights = tf.nn.softmax(logits, name="attention_weights")
+  weights = common_layers.cast_like(weights, q)
+  return tf.matmul(weights, v)
 
 
 def mixed_precision_is_enabled(
@@ -193,27 +229,49 @@ def get_timing_signal_1d(length,
   return signal
 
 
-def get_layer_timing_signal_learned_1d(channels, layer, num_layers):
-  """get n-dimensional embedding as the layer (vertical) timing signal.
+# [DEPRECATED tf.estimator]
+# def get_layer_timing_signal_learned_1d(channels, layer, num_layers):
+#   """get n-dimensional embedding as the layer (vertical) timing signal.
+#
+#   Adds embeddings to represent the position of the layer in the tower.
+#
+#   Args:
+#     channels: dimension of the timing signal
+#     layer: layer num
+#     num_layers: total number of layers
+#
+#   Returns:
+#     a Tensor of timing signals [1, 1, channels].
+#   """
+#   shape = [num_layers, 1, 1, channels]
+#   layer_embedding = (
+#       tf.get_variable(
+#           "layer_embedding",
+#           shape,
+#           initializer=tf.random_normal_initializer(0, channels**-0.5)) *
+#       (channels**0.5))
+#   return layer_embedding[layer, :, :, :]
 
-  Adds embeddings to represent the position of the layer in the tower.
 
-  Args:
-    channels: dimension of the timing signal
-    layer: layer num
-    num_layers: total number of layers
+class GetLayerTimingSignalLearned1D(tf.keras.Model):
 
-  Returns:
-    a Tensor of timing signals [1, 1, channels].
-  """
-  shape = [num_layers, 1, 1, channels]
-  layer_embedding = (
-      tf.get_variable(
-          "layer_embedding",
-          shape,
-          initializer=tf.random_normal_initializer(0, channels**-0.5)) *
-      (channels**0.5))
-  return layer_embedding[layer, :, :, :]
+  def __init__(self, channels, num_layers):
+    super(GetLayerTimingSignalLearned1D, self).__init__()
+    shape = [num_layers, 1, 1, channels]
+    # self._layer_embedding = (
+    #   tf.get_variable(
+    #       "layer_embedding",
+    #       shape,
+    #       initializer=tf.random_normal_initializer(0, channels**-0.5)) *
+    #   (channels**0.5))
+    self._layer_embedding = tf.get_variable(
+      "layer_embedding",
+      shape,
+      initializer=tf.random_normal_initializer(),
+    )
+
+  def call(self, layer, training=False, mask=None):
+    return self._layer_embedding[layer, :, :, :]
 
 
 def encoder_decoder_attention_loss(expected_attention_logits,
