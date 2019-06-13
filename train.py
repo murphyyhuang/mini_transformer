@@ -22,8 +22,10 @@ if __name__ == "__main__":
     'pct/test_data/libigpu0_hparams.yml'
   )
   sys_argv = """
-  --config_dir=/home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/hparams.yml
-  """
+  --config_dir={}
+  """.format(
+    config_path
+  )
   sys_argv = sys_argv.split()
   sys.argv.extend(sys_argv)
 
