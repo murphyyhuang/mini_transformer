@@ -25,13 +25,16 @@ def train(train_generator,
 
   optimizer = model.optimizer()
   # Create and restore checkpoint (if one exists on the path)
-  checkpoint_prefix = os.path.join(hparams.model_dir, 'ckpt')
+  # checkpoint_prefix = os.path.join(hparams.model_dir, 'ckpt')
   step_counter = tf.train.get_or_create_global_step()
   checkpoint = tf.train.Checkpoint(
-    model=model, optimizer=optimizer, step_counter=step_counter
+    model=model, optimizer=optimizer, optimizer_step=step_counter
+  )
+  checkpoint_manager = tf.contrib.checkpoint.CheckpointManager(
+    checkpoint, directory=hparams.model_dir, max_to_keep=hparams.checkpoint_max_to_keep,
   )
   # Restore variables on creation if a checkpoint exists.
-  checkpoint.restore(tf.train.latest_checkpoint(hparams.model_dir))
+  checkpoint.restore(checkpoint_manager.latest_checkpoint)
   for step_index in range(hparams.train_steps):
     features = train_generator.get_next()
 
@@ -44,4 +47,4 @@ def train(train_generator,
         global_step=step_counter)
 
     if not step_index % hparams.eval_steps:
-      checkpoint.save(checkpoint_prefix)
+      checkpoint_manager.save()

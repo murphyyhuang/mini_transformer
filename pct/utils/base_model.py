@@ -206,7 +206,8 @@ class BaseModel(tf.keras.Model):
 
   def optimizer(self):
     """Return a training op minimizing loss."""
-    lr = learning_rate.learning_rate_schedule(self._hparams)
+    # lr = learning_rate.learning_rate_schedule(self._hparams)
+    lr = self._hparams.learning_rate / 1e3
     optimizer = tf.train.AdamOptimizer(
       learning_rate=lr,
       beta1=self._hparams.optimizer_adam_beta1,

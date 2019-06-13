@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
   config_path = os.path.join(
     os.path.dirname(__file__),
-    'pct/test_data/libigpu0_hparams.yml'
+    'pct/test_data/hparams.yml'
   )
   sys_argv = """
   --config_dir={}
@@ -29,5 +29,5 @@ if __name__ == "__main__":
   sys_argv = sys_argv.split()
   sys.argv.extend(sys_argv)
 
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.logging.set_verbosity(tf.logging.WARN)
   tf.app.run()
