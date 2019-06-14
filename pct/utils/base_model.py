@@ -112,12 +112,6 @@ class BaseModel(tf.keras.Model):
       self._problem_hparams.vocab_size["targets"],
     )
 
-    # self.symbol_top = modalities.SymbolTop(
-    #   self._original_hparams,
-    #   self._problem_hparams.vocab_size["targets"],
-    #   self.custom_variables,
-    # )
-
   def call(self, inputs, training=False, **kwargs):
     features = inputs
     # set_custom_getter_compose(self._custom_getter)
@@ -207,9 +201,17 @@ class BaseModel(tf.keras.Model):
   def optimizer(self):
     """Return a training op minimizing loss."""
     # lr = learning_rate.learning_rate_schedule(self._hparams)
-    lr = self._hparams.learning_rate / 1e3
+    started_learning_rate = self._hparams.learning_rate / 1e3
+    learning_rate = tf.train.exponential_decay(
+      started_learning_rate,
+      self._hparams.train_steps,
+      decay_steps=self._hparams.train_steps/2,
+      decay_rate=0.96,
+      staircase=True
+    )
+
     optimizer = tf.train.AdamOptimizer(
-      learning_rate=lr,
+      learning_rate=learning_rate,
       beta1=self._hparams.optimizer_adam_beta1,
       beta2=self._hparams.optimizer_adam_beta2,
       epsilon=self._hparams.optimizer_adam_epsilon,

@@ -29,5 +29,5 @@ if __name__ == "__main__":
   sys_argv = sys_argv.split()
   sys.argv.extend(sys_argv)
 
-  tf.logging.set_verbosity(tf.logging.WARN)
+  tf.logging.set_verbosity(tf.logging.ERROR)
   tf.app.run()
