@@ -35,6 +35,7 @@ class MultiheadAttention(tf.keras.Model):
   def call(self,
            query_antecedent,
            memory_antecedent,
+           bias,
            training=False,
            mask=None,
            ):
@@ -50,7 +51,7 @@ class MultiheadAttention(tf.keras.Model):
 
     key_depth_per_head = self._total_key_depth // self._num_heads
     q *= key_depth_per_head ** -0.5
-    x = dot_product_attention(q, k, v, None)
+    x = dot_product_attention(q, k, v, bias)
     x = combine_heads(x)
 
     x = self.multi_head_concat_block(x, training)

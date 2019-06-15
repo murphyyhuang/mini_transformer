@@ -38,12 +38,13 @@ class UniversalTransformer(base_model.BaseModel):
 
     return encoder_output, encoder_extra_output
 
-  def decode(self, decoder_input, encoder_output, training):
+  def decode(self, decoder_input, encoder_output, decoder_self_attention_bias, training):
 
     (decoder_output, dec_extra_output) = (
       self.universal_transformer_decoder(
         decoder_input,
         encoder_output,
+        decoder_self_attention_bias,
         training
       )
     )
@@ -88,6 +89,7 @@ class UniversalTransformer(base_model.BaseModel):
     decoder_output, dec_extra_output = self.decode(
         decoder_input,
         encoder_output,
+        decoder_self_attention_bias,
         training
     )
 

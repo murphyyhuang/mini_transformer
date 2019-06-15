@@ -72,7 +72,7 @@ class UniversalTransformerEncoder(tf.keras.Model):
     new_state = self.step_preprocess(state, step, self._hparams)
 
     new_state_y = self.attention_unit_preprocess(None, new_state, training)
-    new_state_y = self.attention_unit(new_state_y, None, training)
+    new_state_y = self.attention_unit(new_state_y, None, None, training)
     new_state = self.attention_unit_postprocess(new_state, new_state_y, training)
     new_state_y = self.ffn_unit_preprocess(None, new_state, training)
     new_state_y = self.ffn_unit(new_state_y, training)
@@ -140,7 +140,12 @@ class UniversalTransformerDecoder(tf.keras.Model):
       self._hparams
     )
 
-  def call(self, decoder_input, encoder_output, training=False, mask=None):
+  def call(self,
+           decoder_input,
+           encoder_output,
+           decoder_self_attention_bias,
+           training=False,
+           mask=None):
 
     if self._hparams.recurrence_type == "basic":
       x = decoder_input
@@ -148,6 +153,7 @@ class UniversalTransformerDecoder(tf.keras.Model):
       ut_decoder_unit = functools.partial(
         self._universal_transformer_basic,
         encoder_output=encoder_output,
+        decoder_self_attention_bias=decoder_self_attention_bias,
         training=training,
       )
       output, _, extra_output = tf.foldl(
@@ -157,15 +163,20 @@ class UniversalTransformerDecoder(tf.keras.Model):
       output = self.decoder_normalizer(None, output, training)
       return output, extra_output
 
-  def _universal_transformer_basic(self, decoder_input, step, encoder_output, training):
+  def _universal_transformer_basic(self,
+                                   decoder_input,
+                                   step,
+                                   encoder_output,
+                                   decoder_self_attention_bias,
+                                   training):
     state, inputs, memory = tf.unstack(decoder_input, num=None, axis=0, name="unstack")
     new_state = self.step_preprocess(state, step)
 
     new_state_y = self.attention_unit_preprocess(None, new_state, training)
-    new_state_y = self.attention_unit(new_state_y, None, training)
+    new_state_y = self.attention_unit(new_state_y, None, decoder_self_attention_bias, training)
     new_state = self.attention_unit_postprocess(new_state, new_state_y, training)
     new_state_y = self.ende_attention_unit_preprocess(None, new_state, training)
-    new_state_y = self.ende_attention_unit(new_state_y, encoder_output, training)
+    new_state_y = self.ende_attention_unit(new_state_y, encoder_output, None, training)
     new_state = self.ende_attention_unit_postprocess(new_state, new_state_y, training)
     new_state_y = self.ffn_unit_preprocess(None, new_state, training)
     new_state_y = self.ffn_unit(new_state_y, training)
