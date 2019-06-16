@@ -25,7 +25,7 @@ import tensorflow as tf
 
 from pct.utils import hparams_lib
 from pct.utils import optimize
-from pct.utils import learning_rate
+from pct.utils import text_encoder
 from pct.layers import common_layers
 from pct.layers import modalities
 
@@ -217,6 +217,94 @@ class BaseModel(tf.keras.Model):
       epsilon=self._hparams.optimizer_adam_epsilon,
     )
     return optimizer
+
+  def infer(self, features):
+    if self._hparams.beam_size == 1:
+      tf.logging.info("Greedy Decoding")
+      results = self._greedy_infer(features)
+    else:
+      raise NotImplementedError
+
+    return results
+
+  def _greedy_infer(self, features):
+
+    features["inputs"] = tf.expand_dims(features["inputs"], 2)
+    batch_size = common_layers.shape_list(features["inputs"])[0]
+    initial_output = tf.zeros((batch_size, 0, 1, 1), dtype=tf.int64)
+
+    prefix_length = common_layers.shape_list(features["inputs"])[1]
+    decode_length = prefix_length + self._hparams.decode_length
+    result = initial_output
+
+    vocab_size = self._problem_hparams.vocab_size["targets"]
+
+    logits = tf.zeros((batch_size, 0, 1, 1, vocab_size))
+    logits_shape_inv = [None, None, None, None, None]
+
+    loss = 0.0
+
+    def infer_step(recent_output, recent_logits, unuserd_loss):
+      padded = tf.pad(recent_output, [[0, 0], [0, 1], [0, 0], [0, 0]])
+      features["targets"] = padded
+      samples, logits, losses = self.sample(features)
+
+      cur_sample = samples[:, -1, :, :]
+      cur_sample = tf.to_int64(tf.expand_dims(cur_sample, axis=1))
+      samples = tf.concat([recent_output, cur_sample], axis=1)
+
+      logits = tf.concat([recent_logits, logits[:, -1:]], 1)
+      loss = sum([l for l in losses.values() if l is not None])
+      return samples, logits, loss
+
+
+    def while_exit_cond(result, logits, loss):  # pylint: disable=unused-argument
+      """Exit the loop either if reach decode_length or EOS."""
+      length = common_layers.shape_list(result)[1]
+
+      not_overflow = length < decode_length
+
+      if self._problem_hparams.stop_at_eos:
+
+        def fn_not_eos():
+          return tf.not_equal(  # Check if the last predicted element is a EOS
+              tf.squeeze(result[:, -1, :, :]), text_encoder.EOS_ID)
+
+        not_eos = tf.cond(
+            # We only check for early stopping if there is at least 1 element (
+            # otherwise not_eos will crash).
+            tf.not_equal(length, 0),
+            fn_not_eos,
+            lambda: True,
+        )
+
+        return tf.cond(
+            tf.equal(batch_size, 1),
+            # If batch_size == 1, we check EOS for early stopping.
+            lambda: tf.logical_and(not_overflow, not_eos),
+            # Else, just wait for max length
+            lambda: not_overflow)
+      return not_overflow
+
+    result, logits, loss = tf.while_loop(
+        while_exit_cond,
+        infer_step, [result, logits, loss],
+        shape_invariants=[
+            tf.TensorShape([None, None, None, None]),
+            tf.TensorShape(logits_shape_inv),
+            tf.TensorShape([]),
+        ],
+        back_prop=False,
+        parallel_iterations=1)
+
+  def sample(self, features):
+    logits, losses = self(features)
+    if self._hparams.sampling_method == "argmax":
+      samples = tf.argmax(logits, axis=-1)
+    else:
+      raise ValueError
+
+    return samples, logits, losses
 
   @staticmethod
   def _normalize_body_output(body_out):

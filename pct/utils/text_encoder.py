@@ -31,6 +31,8 @@ PAD = "<pad>"
 EOS = "<EOS>"
 RESERVED_TOKENS = [PAD, EOS]
 NUM_RESERVED_TOKENS = len(RESERVED_TOKENS)
+PAD_ID = RESERVED_TOKENS.index(PAD)  # Normally 0
+EOS_ID = RESERVED_TOKENS.index(EOS)  # Normally 1
 
 # Regular expression for unescaping token strings.
 # '\u' is converted to '_'
