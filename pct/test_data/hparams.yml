@@ -2,10 +2,15 @@
 data_dir: /home/murphyhuang/dev/mldata/en_ch_translate
 problem: translate_enzh_wmt32k
 model: universal_transformer
-model_dir: /tmp/ut_trial
+model_dir: /home/murphyhuang/dev/mldata/en_ch_translate_output_pct_20190618
+output_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translate_output.txt
+decode_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translation_test.txt
 source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
 target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
 checkpoint_max_to_keep: 5
+beam_size: 1
+decode_length: 50
+sampling_method: argmax
 # model
 norm_type: layer
 hidden_size: 1024

@@ -8,12 +8,12 @@ import sys
 import os
 import tensorflow as tf
 
-from pct.bin import pct_trainer
+from pct.bin import pct_decoder
 from pct import global_config
 
 
 def main(argv):
-  pct_trainer.main(argv)
+  pct_decoder.main(argv)
 
 
 if __name__ == "__main__":

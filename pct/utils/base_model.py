@@ -23,6 +23,7 @@ import six
 import collections
 import tensorflow as tf
 
+from pct import global_config
 from pct.utils import hparams_lib
 from pct.utils import optimize
 from pct.utils import text_encoder
@@ -30,6 +31,8 @@ from pct.layers import common_layers
 from pct.layers import modalities
 
 from tensorflow.python.ops import variable_scope
+
+tf.logging.set_verbosity(global_config.LOGGING_LEVEL)
 
 
 class DummyVariableStore(object):
@@ -39,11 +42,11 @@ class DummyVariableStore(object):
     yield
 
 
-def create_eager_var_store():
-  if tf.executing_eagerly():
-    return variable_scope.EagerVariableStore()
-  else:
-    return DummyVariableStore()
+# def create_eager_var_store():
+#   if tf.executing_eagerly():
+#     return variable_scope.EagerVariableStore()
+#   else:
+#     return DummyVariableStore()
 
 
 def summarize_features(features, num_shards=1):
@@ -100,7 +103,7 @@ class BaseModel(tf.keras.Model):
     self.set_mode(mode)
     # self._decode_hparams = hparams_lib.copy_hparams(
     #   decode_hparams) if decode_hparams is not None else None
-    self._eager_var_store = create_eager_var_store()
+    # self._eager_var_store = create_eager_var_store()
 
     self.symbol_bottom_inputs = modalities.SymbolBottomSimple(
       self._original_hparams,
@@ -115,15 +118,22 @@ class BaseModel(tf.keras.Model):
   def call(self, inputs, training=False, **kwargs):
     features = inputs
     # set_custom_getter_compose(self._custom_getter)
-    tf.get_variable_scope().set_initializer(
-      optimize.get_variable_initializer(self.hparams))
-    with self._eager_var_store.as_default():
-      summarize_features(features)
-      logits, losses_dict = self.model_fn(features, training)
+    # tf.get_variable_scope().set_initializer(
+    #   optimize.get_variable_initializer(self.hparams))
+    # with self._eager_var_store.as_default():
+    #   summarize_features(features)
+    #   logits, losses_dict = self.model_fn(features, training)
+    #
+    #   # sum up different kinds of loss
+    #   loss = sum(losses_dict[key] for key in sorted(losses_dict.keys()))
+    #   return logits, loss
 
-      # sum up different kinds of loss
-      loss = sum(losses_dict[key] for key in sorted(losses_dict.keys()))
-      return logits, loss
+    summarize_features(features)
+    logits, losses_dict = self.model_fn(features, training)
+
+    # sum up different kinds of loss
+    loss = sum(losses_dict[key] for key in sorted(losses_dict.keys()))
+    return logits, loss
 
   def bottom(self, features, training):
 
@@ -221,11 +231,10 @@ class BaseModel(tf.keras.Model):
   def infer(self, features):
     if self._hparams.beam_size == 1:
       tf.logging.info("Greedy Decoding")
-      results = self._greedy_infer(features)
+      result = self._greedy_infer(features)
     else:
       raise NotImplementedError
-
-    return results
+    return result
 
   def _greedy_infer(self, features):
 
@@ -247,14 +256,14 @@ class BaseModel(tf.keras.Model):
     def infer_step(recent_output, recent_logits, unuserd_loss):
       padded = tf.pad(recent_output, [[0, 0], [0, 1], [0, 0], [0, 0]])
       features["targets"] = padded
-      samples, logits, losses = self.sample(features)
+      samples, logits, loss = self.sample(features)
 
       cur_sample = samples[:, -1, :, :]
       cur_sample = tf.to_int64(tf.expand_dims(cur_sample, axis=1))
       samples = tf.concat([recent_output, cur_sample], axis=1)
 
       logits = tf.concat([recent_logits, logits[:, -1:]], 1)
-      loss = sum([l for l in losses.values() if l is not None])
+
       return samples, logits, loss
 
 
@@ -295,16 +304,22 @@ class BaseModel(tf.keras.Model):
             tf.TensorShape([]),
         ],
         back_prop=False,
-        parallel_iterations=1)
+        parallel_iterations=1,
+        name='',
+    )
+
+    # result, logits, loss = infer_step(result, logits, loss)
+
+    return result
 
   def sample(self, features):
-    logits, losses = self(features)
+    logits, loss = self(features, training=False)
     if self._hparams.sampling_method == "argmax":
       samples = tf.argmax(logits, axis=-1)
     else:
       raise ValueError
 
-    return samples, logits, losses
+    return samples, logits, loss
 
   @staticmethod
   def _normalize_body_output(body_out):

@@ -9,19 +9,30 @@ import numpy as np
 import tensorflow as tf
 
 from pct.utils import text_encoder
+from pct.utils import hparam
 
 # Enable TF Eager execution
 tfe = tf.contrib.eager
 
 
-def text2text_encoders(data_dir, hparams):
-  source_vocab_filename = os.path.join(data_dir, hparams.source_vocab_filename)
-  target_vocab_filename = os.path.join(data_dir, hparams.target_vocab_filename)
+def text2text_encoders(hparams):
+  source_vocab_filename = os.path.join(hparams.data_dir, hparams.source_vocab_filename)
+  target_vocab_filename = os.path.join(hparams.data_dir, hparams.target_vocab_filename)
   source_token = text_encoder.SubwordTextEncoder(source_vocab_filename)
   target_token = text_encoder.SubwordTextEncoder(target_vocab_filename)
+
+  # create HParams instance
+  hp = hparam.HParams()
+  hp.add_hparam("vocab_size", {
+    "inputs": source_token.vocab_size,
+    "targets": target_token.vocab_size,
+  })
+  hp.add_hparam("stop_at_eos", text_encoder.EOS_ID)
+
   return {
     "inputs": source_token,
     "targets": target_token,
+    "hparams": hp,
   }
 
 
@@ -45,12 +56,11 @@ def decode_from_file(encoders, text2text_model, hparams):
       return encoders["targets"].decode(np.squeeze(integers))
 
   output_writer = open(hparams.output_dir, 'a+')
-  with tfe.restore_variables_on_create(hparams.model_dir):
-    with open(hparams.decode_dir, 'r') as file_reader:
-      for sentence in file_reader:
-        sentence = sentence.strip()
-        encoded_inputs = encode(sentence)
-        model_output = text2text_model.infer(encoded_inputs)
-        decode_output = decode(model_output)
-        output_writer.write(decode_output + '\n')
+  with open(hparams.decode_dir, 'r') as file_reader:
+    for sentence in file_reader:
+      sentence = sentence.strip()
+      encoded_inputs = encode(sentence)
+      model_output = text2text_model.infer(encoded_inputs)
+      decode_output = decode(model_output)
+      output_writer.write(decode_output + '\n')
   output_writer.close()

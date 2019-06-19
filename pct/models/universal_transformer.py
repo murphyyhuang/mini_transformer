@@ -49,7 +49,8 @@ class UniversalTransformer(base_model.BaseModel):
       )
     )
 
-    return decoder_output, dec_extra_output
+    # Expand since we default set 4d tensors as standard tensor for base_model class.
+    return tf.expand_dims(decoder_output, axis=2), dec_extra_output
 
   def body(self, features, training):
     """Universal Transformer main model_fn.

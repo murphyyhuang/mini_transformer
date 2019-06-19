@@ -1,0 +1,5 @@
+Hello, how are you?
+Here comes the bus.
+I find this book extremely interesting.
+A promising alternative is to directly synthesize speech from brain activity.
+Spelling is a sequential concatenation of discrete letters, whereas speech is a highly efficient form of communication produced from a fluid stream of overlapping, multi-articulator vocal tract movements.

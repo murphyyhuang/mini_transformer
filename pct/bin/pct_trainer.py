@@ -11,6 +11,7 @@ from pct.utils import data_reader
 from pct.utils import hparams_lib
 from pct.utils import base_model_lib
 from pct.utils import trainer_lib
+from pct import global_config
 
 # force registration of models
 from pct import models # pylint: disable=unused-import
@@ -26,7 +27,7 @@ tf.enable_eager_execution(config=session_config)
 
 
 def main(argv):
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.logging.set_verbosity(global_config.LOGGING_LEVEL)
 
   # read hyper-parameters
   assert hasattr(FLAGS, 'config_dir'), "'config_dir' must be given to set all the hyper-parameters of this project."
