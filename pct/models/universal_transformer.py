@@ -75,11 +75,6 @@ class UniversalTransformer(base_model.BaseModel):
     inputs = features["inputs"]
     inputs = common_layers.flatten4d3d(inputs)
     (encoder_output, enc_extra_output) = self.encode(inputs, training)
-    # if self.has_input:
-    #   inputs = features["inputs"]
-    #   (encoder_output, enc_extra_output) = self.encode(inputs, hparams)
-    # else:
-    #   (encoder_output, enc_extra_output) = (None, (None, None))
 
     targets = features["targets"]
     targets = common_layers.flatten4d3d(targets)

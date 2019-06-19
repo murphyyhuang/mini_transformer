@@ -25,12 +25,10 @@ import tensorflow as tf
 
 from pct import global_config
 from pct.utils import hparams_lib
-from pct.utils import optimize
 from pct.utils import text_encoder
 from pct.layers import common_layers
 from pct.layers import modalities
 
-from tensorflow.python.ops import variable_scope
 
 tf.logging.set_verbosity(global_config.LOGGING_LEVEL)
 
@@ -40,13 +38,6 @@ class DummyVariableStore(object):
   @contextlib.contextmanager
   def as_default(self):
     yield
-
-
-# def create_eager_var_store():
-#   if tf.executing_eagerly():
-#     return variable_scope.EagerVariableStore()
-#   else:
-#     return DummyVariableStore()
 
 
 def summarize_features(features, num_shards=1):
@@ -101,9 +92,6 @@ class BaseModel(tf.keras.Model):
     self._problem_hparams = problem_hparams
     self._original_hparams = hparams_lib.copy_hparams(hparams)
     self.set_mode(mode)
-    # self._decode_hparams = hparams_lib.copy_hparams(
-    #   decode_hparams) if decode_hparams is not None else None
-    # self._eager_var_store = create_eager_var_store()
 
     self.symbol_bottom_inputs = modalities.SymbolBottomSimple(
       self._original_hparams,
@@ -117,16 +105,6 @@ class BaseModel(tf.keras.Model):
 
   def call(self, inputs, training=False, **kwargs):
     features = inputs
-    # set_custom_getter_compose(self._custom_getter)
-    # tf.get_variable_scope().set_initializer(
-    #   optimize.get_variable_initializer(self.hparams))
-    # with self._eager_var_store.as_default():
-    #   summarize_features(features)
-    #   logits, losses_dict = self.model_fn(features, training)
-    #
-    #   # sum up different kinds of loss
-    #   loss = sum(losses_dict[key] for key in sorted(losses_dict.keys()))
-    #   return logits, loss
 
     summarize_features(features)
     logits, losses_dict = self.model_fn(features, training)
@@ -307,8 +285,6 @@ class BaseModel(tf.keras.Model):
         parallel_iterations=1,
         name='',
     )
-
-    # result, logits, loss = infer_step(result, logits, loss)
 
     return result
 

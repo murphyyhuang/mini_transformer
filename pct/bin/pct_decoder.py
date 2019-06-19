@@ -13,8 +13,6 @@ from pct.utils import decoding
 from pct.utils import registry
 from pct import global_config
 
-from pct.utils import data_reader
-
 # force registration of models
 from pct import models # pylint: disable=unused-import
 
@@ -53,8 +51,3 @@ def main(argv):
   checkpoint.restore(checkpoint_manager.latest_checkpoint)
 
   decoding.decode_from_file(t2t_encoders, model, model_hparams)
-  # train_generator = data_reader.TextDataGenerator(tf.estimator.ModeKeys.TRAIN, model_hparams)
-  # for _ in range(100):
-  #   features = train_generator.get_next()
-  #   logits, loss = model(features, training=False)
-  #   print(loss)

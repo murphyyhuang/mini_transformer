@@ -58,64 +58,6 @@ class MultiheadAttention(tf.keras.Model):
 
     return x
 
-# [DEPRECATED tf.estimator]
-# def multihead_attention(query_antecedent,
-#                         memory_antecedent,
-#                         total_key_depth,
-#                         total_value_depth,
-#                         output_depth,
-#                         num_heads,
-#                         cache=None,
-#                         name='multihead_attention'):
-#   with tf.variable_scope(name):
-#     if cache is None or memory_antecedent is None:
-#       q, k, v = compute_qkv(query_antecedent, None, total_key_depth, total_value_depth)
-#
-#     q = split_heads(q, num_heads)
-#     if cache is None:
-#       k = split_heads(k, num_heads)
-#       v = split_heads(v, num_heads)
-#
-#     key_depth_per_head = total_key_depth // num_heads
-#     q *= key_depth_per_head ** -0.5
-#
-#     x = dot_product_attention(q, k, v, None)
-#     x = combine_heads(x)
-#
-#     x = common_layers.dense(
-#       x, output_depth, use_bias=False, name="output_transform")
-#
-#     return x
-#
-#
-# def compute_qkv(query_antecedent,
-#                 memory_antecedent,
-#                 total_key_depth,
-#                 total_value_depth):
-#   """
-#
-#   :param query_antecedent:
-#   :param memory_antecedent:
-#   :param total_key_depth:
-#   :param total_value_depth:
-#   :return:
-#     q, k, v : [batch, length, depth] tensors
-#   """
-#
-#   if memory_antecedent is None:
-#     memory_antecedent = query_antecedent
-#
-#   q = compute_attention_component(query_antecedent, total_key_depth, "q")
-#   k = compute_attention_component(memory_antecedent, total_key_depth, "k")
-#   v = compute_attention_component(memory_antecedent, total_value_depth, "v")
-#
-#   return q, k, v
-#
-#
-# def compute_attention_component(antecedent, total_depth, name='None'):
-#   dense_result = common_layers.dense(antecedent, total_depth, use_bias=False, name=name)
-#   return dense_result
-
 
 def split_heads(x, num_heads):
   """Split channels (dimension 2) into multiple heads (becomes dimension 1).
@@ -228,30 +170,6 @@ def get_timing_signal_1d(length,
   signal = tf.pad(signal, [[0, 0], [0, tf.mod(channels, 2)]])
   signal = tf.reshape(signal, [1, length, channels])
   return signal
-
-
-# [DEPRECATED tf.estimator]
-# def get_layer_timing_signal_learned_1d(channels, layer, num_layers):
-#   """get n-dimensional embedding as the layer (vertical) timing signal.
-#
-#   Adds embeddings to represent the position of the layer in the tower.
-#
-#   Args:
-#     channels: dimension of the timing signal
-#     layer: layer num
-#     num_layers: total number of layers
-#
-#   Returns:
-#     a Tensor of timing signals [1, 1, channels].
-#   """
-#   shape = [num_layers, 1, 1, channels]
-#   layer_embedding = (
-#       tf.get_variable(
-#           "layer_embedding",
-#           shape,
-#           initializer=tf.random_normal_initializer(0, channels**-0.5)) *
-#       (channels**0.5))
-#   return layer_embedding[layer, :, :, :]
 
 
 class GetLayerTimingSignalLearned1D(tf.keras.Model):
