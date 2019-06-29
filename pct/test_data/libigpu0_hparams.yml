@@ -2,7 +2,7 @@
 data_dir: /home/libi/HDD1/huan1282/dev/mldata/en_ch_translate
 problem: translate_enzh_wmt32k
 model: universal_transformer
-model_dir: /tmp/ut_trial
+model_dir: /home/libi/HDD1/huan1282/ut_trial
 source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
 target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
 checkpoint_max_to_keep: 5
