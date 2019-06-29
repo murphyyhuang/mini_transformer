@@ -1,5 +1,6 @@
-Hello, how are you?
-Here comes the bus.
-I find this book extremely interesting.
-A promising alternative is to directly synthesize speech from brain activity.
-Spelling is a sequential concatenation of discrete letters, whereas speech is a highly efficient form of communication produced from a fluid stream of overlapping, multi-articulator vocal tract movements.
+It is commonly believed in United States that school is where people go to get an education.
+Nevertheless, it has been said that today children interrupt their education to go to school.
+The distinction between schooling and education implied by this remark is important.
+Education is much more open-ended and all-inclusive than schooling.
+Education knows no bounds.
+It can take place anywhere, whether in the shower or in the job, whether in a kitchen or on a tractor.

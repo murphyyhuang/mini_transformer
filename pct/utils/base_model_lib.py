@@ -35,16 +35,23 @@ def train(train_generator,
   )
   # Restore variables on creation if a checkpoint exists.
   checkpoint.restore(checkpoint_manager.latest_checkpoint)
-  for step_index in range(hparams.train_steps):
-    features = train_generator.get_next()
 
-    with tf.GradientTape() as tape:
-      logits, loss = model(features, training=True)
-      print("* Loss for step{}: {}".format(step_index, loss))
-      grads = tape.gradient(loss, model.trainable_variables)
-      optimizer.apply_gradients(
-        zip(grads, model.trainable_variables),
-        global_step=step_counter)
+  summary_writer = tf.contrib.summary.create_file_writer(
+    hparams.model_dir,
+    flush_millis=10000,
+  )
 
-    if not step_index % hparams.eval_steps:
-      checkpoint_manager.save()
+  with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
+    for step_index in range(hparams.train_steps):
+      features = train_generator.get_next()
+
+      with tf.GradientTape() as tape:
+        logits, loss = model(features, training=True)
+        print("* Loss for step{}: {}".format(step_index, loss))
+        grads = tape.gradient(loss, model.trainable_variables)
+        optimizer.apply_gradients(
+          zip(grads, model.trainable_variables),
+          global_step=step_counter)
+
+      if not step_index % hparams.eval_steps:
+        checkpoint_manager.save()
