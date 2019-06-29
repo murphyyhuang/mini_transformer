@@ -56,6 +56,11 @@ eval_steps: 100
 # universal transformer hyper-parameters
 recurrence_type: basic
 num_rec_steps: 6
+# universal transformer act hyper-parameters
+act_max_steps: 12
+act_epsilon: 0.01
+act_halting_bias_init: 1
+act_loss_weights: 0.01
 # num_inrecurrence_layers: 1 # no-use
 step_timing_signal_type: learned
 add_or_concat_timing_signal: add
