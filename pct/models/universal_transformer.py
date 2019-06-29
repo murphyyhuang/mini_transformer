@@ -98,13 +98,10 @@ class UniversalTransformer(base_model.BaseModel):
       return decoder_output, {"attention_loss": attention_loss}
 
     if hparams.recurrence_type == "act" and hparams.act_loss_weight != 0:
-      if self.has_input:
-        enc_ponder_times, enc_remainders = enc_extra_output
-        enc_act_loss = (
-            hparams.act_loss_weight *
-            tf.reduce_mean(enc_ponder_times + enc_remainders))
-      else:
-        enc_act_loss = 0.0
+      enc_ponder_times, enc_remainders = enc_extra_output
+      enc_act_loss = (
+          hparams.act_loss_weight *
+          tf.reduce_mean(enc_ponder_times + enc_remainders))
 
       (dec_ponder_times, dec_remainders) = dec_extra_output
       dec_act_loss = (

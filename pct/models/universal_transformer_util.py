@@ -117,7 +117,7 @@ class UniversalTransformerDecoder(tf.keras.Model):
       output, extra_output = universal_transformer_act(decoder_input, encoder_output,
                                                        decoder_self_attention_bias, self.step_preprocess,
                                                        self.transformer_decoder_attention_unit,
-                                                       self.transformer_decoder_ffn_unit,
+                                                       self.transformer_decoder_ffn_unit, self.halting_unit,
                                                        self._hparams, training)
 
       output = self.decoder_normalizer(None, output, training)

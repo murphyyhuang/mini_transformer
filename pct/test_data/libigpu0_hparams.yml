@@ -60,7 +60,7 @@ num_rec_steps: 6
 act_max_steps: 12
 act_epsilon: 0.01
 act_halting_bias_init: 1
-act_loss_weights: 0.01
+act_loss_weight: 0.01
 # num_inrecurrence_layers: 1 # no-use
 step_timing_signal_type: learned
 add_or_concat_timing_signal: add

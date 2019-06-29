@@ -2,7 +2,7 @@
 data_dir: /home/murphyhuang/dev/mldata/en_ch_translate
 problem: translate_enzh_wmt32k
 model: universal_transformer
-model_dir: /home/murphyhuang/dev/mldata/en_ch_translate_output_pct_20190618
+model_dir: /home/murphyhuang/dev/mldata/en_ch_translate_output_pct_20190629
 output_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translate_output.txt
 decode_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translation_test.txt
 source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
@@ -56,13 +56,13 @@ optimizer_adam_epsilon: 1e-9
 train_steps: 250000
 eval_steps: 100
 # universal transformer hyper-parameters
-recurrence_type: basic
+recurrence_type: act
 num_rec_steps: 6
 # universal transformer act hyper-parameters
 act_max_steps: 12
 act_epsilon: 0.01
 act_halting_bias_init: 1
-act_loss_weights: 0.01
+act_loss_weight: 0.01
 # num_inrecurrence_layers: 1 # no-use
 step_timing_signal_type: learned
 add_or_concat_timing_signal: add
