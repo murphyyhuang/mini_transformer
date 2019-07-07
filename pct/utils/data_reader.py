@@ -245,8 +245,8 @@ class TextDataGenerator(object):
 
   def __init__(self, mode, hparams):
 
-    self._input_fn = None
     self._model_hparams = hparams_lib.copy_hparams(hparams)
+    self._input_fn = None
     self._input_fn_init(mode, hparams)
 
     self._hparams = None
@@ -273,7 +273,7 @@ class TextDataGenerator(object):
     })
     dataset = self.dataset(**dataset_kwargs)
 
-    if is_training:
+    if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
       dataset = dataset.repeat()
 
     if is_training and skip_random_fraction_when_training:
@@ -336,7 +336,6 @@ class TextDataGenerator(object):
 
     self._input_fn = dataset
 
-
   def get_next(self):
     result = self._iterator.get_next()
     return result
@@ -365,6 +364,8 @@ class TextDataGenerator(object):
     if shuffle_files:
       dataset = dataset.apply(tf.data.experimental.parallel_interleave(
         _load_records_and_preprocess, sloppy=True, cycle_length=8))
+    else:
+      dataset = dataset.apply(_load_records_and_preprocess)
 
     if shuffle_files and is_training:
       dataset = dataset.shuffle(shuffle_buffer_size)

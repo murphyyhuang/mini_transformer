@@ -1,8 +1,8 @@
 # entry info
-data_dir: /home/murphyhuang/dev/mldata/en_ch_translate
+data_dir: /home/murphyhuang/dev/mldata/t2t_data/en_ch_translate
 problem: translate_enzh_wmt32k
 model: universal_transformer
-model_dir: /home/murphyhuang/dev/mldata/en_ch_translate_output_pct_20190629
+model_dir: /tmp/t2t_model_ut
 output_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translate_output.txt
 decode_dir: /home/murphyhuang/dev/src/github.com/EstelleHuang666/PCT-dev/pct/test_data/translation_test.txt
 source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
@@ -29,7 +29,7 @@ norm_epsilon: 1e-6
 # symbol_modality_num_shards: 16
 # data loading
 num_threads:
-batch_size: 1024
+batch_size: 128
 min_length: 0
 max_length: 256
 min_length_bucket: 8
@@ -54,7 +54,7 @@ optimizer_adam_beta2: 0.98
 optimizer_adam_epsilon: 1e-9
 # steps
 train_steps: 250000
-eval_steps: 100
+eval_steps: 5
 # universal transformer hyper-parameters
 recurrence_type: act
 num_rec_steps: 6
