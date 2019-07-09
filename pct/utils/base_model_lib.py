@@ -72,6 +72,7 @@ def train(train_generator,
         except tf.errors.OutOfRangeError:
           break
 
-      tf.contrib.summary.scalar("eval loss", loss)
-      tf.logging.warn("* Eval for step {}, loss: {}".format(step_index, tf.reduce_mean(eval_losses)))
+      eval_mean_loss = tf.reduce_mean(eval_losses)
+      tf.contrib.summary.scalar("eval loss", eval_mean_loss)
+      tf.logging.warn("* Eval for step {}, loss: {}".format(step_index, eval_mean_loss))
       checkpoint_manager.save()

@@ -28,7 +28,7 @@ norm_epsilon: 1e-6
 # symbol_modality_num_shards: 16
 # data loading
 num_threads:
-batch_size: 2048
+batch_size: 1024
 min_length: 0
 max_length: 256
 min_length_bucket: 8
