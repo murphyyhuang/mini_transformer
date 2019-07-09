@@ -42,10 +42,9 @@ def main(argv):
 
   with train_summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
     train_data_generator = data_reader.TextDataGenerator(tf.estimator.ModeKeys.TRAIN, model_hparams)
-    dev_data_generator = data_reader.TextDataGenerator(tf.estimator.ModeKeys.EVAL, model_hparams)
-    base_model_lib.train(train_data_generator, dev_data_generator, model_hparams)
+    dev_data_generator_fn = data_reader.make_model_input_fn(tf.estimator.ModeKeys.EVAL, model_hparams)
+    base_model_lib.train(train_data_generator, dev_data_generator_fn, model_hparams)
 
 
 if __name__ == "__main__":
-  tf.logging.set_verbosity(tf.logging.INFO)
   tf.app.run()

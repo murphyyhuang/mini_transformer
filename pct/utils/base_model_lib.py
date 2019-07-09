@@ -12,7 +12,7 @@ from pct.utils import hparams_lib
 
 
 def train(train_generator,
-          dev_data_generator,
+          dev_data_generator_fn,
           hparams,
           ):
   hparams = hparams_lib.copy_hparams(hparams)
@@ -37,7 +37,8 @@ def train(train_generator,
   # Restore variables on creation if a checkpoint exists.
   checkpoint.restore(checkpoint_manager.latest_checkpoint)
 
-  for step_index in range(hparams.train_steps):
+  start_step = step_counter.value()
+  for step_index in range(start_step, hparams.train_steps):
     features = train_generator.get_next()
 
     with tf.GradientTape() as tape:
@@ -50,7 +51,17 @@ def train(train_generator,
         global_step=step_counter)
 
     if not step_index % hparams.eval_steps:
-      eval_features = dev_data_generator.get_next()
-      _, eval_loss = model(eval_features, training=False)
-      print("* Eval for step {}, loss: {}".format(step_index, eval_loss))
+      dev_data_generator = dev_data_generator_fn()
+
+      eval_losses = []
+
+      while True:
+        try:
+          eval_features = dev_data_generator.get_next()
+          _, eval_loss = model(eval_features, training=False)
+          eval_losses.append(eval_loss)
+        except tf.errors.OutOfRangeError:
+          break
+
+      print("* Eval for step {}, loss: {}".format(step_index, tf.reduce_mean(eval_losses)))
       checkpoint_manager.save()

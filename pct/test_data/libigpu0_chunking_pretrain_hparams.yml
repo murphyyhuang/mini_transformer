@@ -1,0 +1,69 @@
+# entry info
+data_dir: /home/libi/HDD1/huan1282/dev/mldata/en_ch_translate
+problem: translate_enzh_wmt32k
+model: chunking_elman_rnn
+model_dir: /home/libi/HDD1/huan1282/tmp/chunking
+source_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.en
+target_vocab_filename: vocab.translate_enzh_wmt32k.32768.subwords.zh
+pretrain_type: autoregressive
+checkpoint_max_to_keep: 5
+beam_size: 1
+decode_length: 50
+sampling_method: argmax
+# model
+norm_type: layer
+hidden_size: 1024
+filter_size: 4096
+clip_grad_norm: 0.
+initializer_gain: 1.0
+initializer: uniform_unit_scaling
+weight_decay: 0.0
+num_sampled_classes: 0
+layer_preprocess_sequence: n
+layer_postprocess_sequence: a # do not consider dropout
+add_position_timing_signal: True
+local_eval_frequency:
+norm_epsilon: 1e-6
+# word embedding
+# symbol_modality_num_shards: 16
+# data loading
+num_threads:
+batch_size: 2048
+min_length: 0
+max_length: 256
+min_length_bucket: 8
+length_bucket_step: 1.1
+shuffle_files:
+shuffle_buffer_size:
+batch_shuffle_size: 512
+split_to_length: 0
+eval_drop_long_sequences: False
+# bottom transformation
+multiply_embedding_mode: sqrt_depth
+# loss function during training
+label_smoothing: 0.1
+# optimizer
+optimizer: adam  # omly support adam for current project
+learning_rate_schedule: legacy
+learning_rate_decay_scheme: noam
+learning_rate: 0.1
+learning_rate_warmup_steps: 4000
+optimizer_adam_beta1: 0.9
+optimizer_adam_beta2: 0.98
+optimizer_adam_epsilon: 1e-9
+# steps
+train_steps: 250000
+eval_steps: 1000
+# universal transformer hyper-parameters
+recurrence_type: act
+num_rec_steps: 6
+# universal transformer act hyper-parameters
+act_max_steps: 12
+act_epsilon: 0.1
+act_halting_bias_init: 1
+act_loss_weight: 0.01
+# num_inrecurrence_layers: 1 # no-use
+step_timing_signal_type: learned
+add_or_concat_timing_signal: add
+add_step_timing_signal: True
+num_heads: 8

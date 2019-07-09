@@ -8,3 +8,4 @@ from __future__ import print_function
 
 from pct.models import universal_transformer
 from pct.models import predictive_coded_transformer
+from pct.models import chunking_recurrent_neural_network

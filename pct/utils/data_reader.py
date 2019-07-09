@@ -273,7 +273,7 @@ class TextDataGenerator(object):
     })
     dataset = self.dataset(**dataset_kwargs)
 
-    if mode in [tf.estimator.ModeKeys.TRAIN, tf.estimator.ModeKeys.EVAL]:
+    if is_training:
       dataset = dataset.repeat()
 
     if is_training and skip_random_fraction_when_training:
@@ -478,3 +478,14 @@ class DatasetSplit(object):
   TRAIN = tf.estimator.ModeKeys.TRAIN
   EVAL = tf.estimator.ModeKeys.EVAL
   TEST = "test"
+
+
+def make_model_input_fn(mode, hparams):
+
+  def model_input_fn():
+    return TextDataGenerator(
+      mode,
+      hparams
+    )
+
+  return model_input_fn

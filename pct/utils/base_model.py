@@ -16,9 +16,6 @@ from pct.layers import common_layers
 from pct.layers import modalities
 
 
-tf.logging.set_verbosity(global_config.LOGGING_LEVEL)
-
-
 class DummyVariableStore(object):
 
   @contextlib.contextmanager

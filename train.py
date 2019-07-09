@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
   config_path = os.path.join(
     os.path.dirname(__file__),
-    'pct/test_data/hparams.yml'
+    'pct/test_data/chunking_pretrain_hparams.yml'
   )
   sys_argv = """
   --config_dir={}

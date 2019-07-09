@@ -65,14 +65,14 @@ def generic_loss(top_out,
   confidence = 1.0 - model_hparams.label_smoothing
   logits_shape = common_layers.shape_list(logits)
   vocab_size = logits_shape[-1]
-  with tf.name_scope("padded_cross_entropy", values=[logits, labels]):
-    logits, labels = common_layers.pad_with_zeros(logits, labels)
-    logits = tf.reshape(
-        logits,
-        common_layers.shape_list(labels) + [vocab_size],
-        name="padded_cross_entropy_size_check")
-    logits = tf.cast(logits, tf.float32)
-    xent = common_layers.smoothing_cross_entropy(
-      logits, labels, vocab_size, confidence, gaussian=gaussian)
-    weights = weights_fn(labels)
-    return tf.reduce_sum(xent * weights), tf.reduce_sum(weights)
+
+  logits, labels = common_layers.pad_with_zeros(logits, labels)
+  logits = tf.reshape(
+      logits,
+      common_layers.shape_list(labels) + [vocab_size],
+      name="padded_cross_entropy_size_check")
+  logits = tf.cast(logits, tf.float32)
+  xent = common_layers.smoothing_cross_entropy(
+    logits, labels, vocab_size, confidence, gaussian=gaussian)
+  weights = weights_fn(labels)
+  return tf.reduce_sum(xent * weights), tf.reduce_sum(weights)
