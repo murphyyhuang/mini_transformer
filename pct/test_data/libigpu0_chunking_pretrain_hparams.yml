@@ -1,5 +1,5 @@
 # entry info
-data_dir: /home/libi/HDD1/huan1282/dev/mldata/en_ch_translate
+data_dir: /home/libi/HDD1/huan1282/dev/mldata/t2t_data/en_ch_translate
 problem: translate_enzh_wmt32k
 model: chunking_elman_rnn
 model_dir: /home/libi/HDD1/huan1282/tmp/chunking
