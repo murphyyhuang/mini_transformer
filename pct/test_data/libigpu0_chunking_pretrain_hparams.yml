@@ -54,6 +54,7 @@ optimizer_adam_epsilon: 1e-9
 # steps
 train_steps: 250000
 eval_steps: 1000
+monitor_steps: 100
 # universal transformer hyper-parameters
 recurrence_type: act
 num_rec_steps: 6

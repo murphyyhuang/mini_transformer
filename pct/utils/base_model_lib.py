@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import os
 import tensorflow as tf
+import time
 
 from pct.utils import registry
 from pct.utils import hparams_lib
@@ -38,17 +39,25 @@ def train(train_generator,
   checkpoint.restore(checkpoint_manager.latest_checkpoint)
 
   start_step = step_counter.value()
+  start_timer = time.time()
   for step_index in range(start_step, hparams.train_steps):
     features = train_generator.get_next()
 
     with tf.GradientTape() as tape:
       logits, loss = model(features, training=True)
       tf.contrib.summary.scalar("loss", loss)
-      print("* Loss for step {}: {}".format(step_index, loss))
+
       grads = tape.gradient(loss, model.trainable_variables)
       optimizer.apply_gradients(
         zip(grads, model.trainable_variables),
         global_step=step_counter)
+
+    if not step_index % hparams.monitor_steps:
+      end_timer = time.time()
+      tf.logging.warn("* Loss for step {}: {}".format(step_index, loss))
+      tf.logging.warn("* Running {} batches takes: {} secs"
+                      .format(hparams.monitor_steps, end_timer - start_timer))
+      start_timer = time.time()
 
     if not step_index % hparams.eval_steps:
       dev_data_generator = dev_data_generator_fn()
@@ -63,5 +72,6 @@ def train(train_generator,
         except tf.errors.OutOfRangeError:
           break
 
-      print("* Eval for step {}, loss: {}".format(step_index, tf.reduce_mean(eval_losses)))
+      tf.contrib.summary.scalar("eval loss", loss)
+      tf.logging.warn("* Eval for step {}, loss: {}".format(step_index, tf.reduce_mean(eval_losses)))
       checkpoint_manager.save()
