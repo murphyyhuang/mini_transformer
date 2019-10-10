@@ -4,4 +4,5 @@ This project is a realization of Transformer[1]. It is base on the Tensor2Tensor
 
 # Reference
 [1] Vaswani, Ashish, et al. "Attention is all you need." Advances in neural information processing systems. 2017.
+
 [2] Vaswani, Ashish, et al. "Tensor2tensor for neural machine translation." arXiv preprint arXiv:1803.07416 (2018).
