@@ -1,5 +1,6 @@
 # Mini Transformer
-This project is a realization of Transformer[1]. It is base on the Tensor2Tensor framwork[2] but simplifies many components. This mini Tensor2Tensor framework is suitable for the development of deep learning network in the laboratory level. It enables you to regard data preprocessing, model, layer as separate components and provides great flexibility to explore different network structure.
+This project is a realization of Transformer[1]. It is base on the Tensor2Tensor framwork[2] but simplifies some of the structures. This mini Tensor2Tensor framework is succinct but powerful enough for the development of deep learning network in the laboratory level. It enables you to regard data preprocessing, model, layer as separate components and provides great flexibility to explore different network structure in some sort of plug-and-play style. 
+Besides, this project is based on [TensorFlow Eager framework](https://www.tensorflow.org/guide/eager), which is an imperative programming environment that evaluates operations immediately, without building graphs. It is eaiser to debug the project but only supports single GPU for the time being.
 
 
 # Reference
