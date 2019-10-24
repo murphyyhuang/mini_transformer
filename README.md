@@ -13,7 +13,7 @@ Besides, this project is based on [TensorFlow Eager framework](https://www.tenso
 Under the `pct/utils/data_reader.py`, currently do not support different data reader class.
 
 ### Models
-The main part for the model structure. In order to add more models to this framework, refer to the following steps:
+The main part for the model structure. To add more models into this framework, refer to the following steps:
 
 1. Create class that extends T2TModel in this example it will be a copy of existing basic fully connected network:
 ```
